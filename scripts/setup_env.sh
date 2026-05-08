@@ -112,6 +112,7 @@ main() {
   log "Setup complete"
   printf '\nNext steps:\n'
   printf '  source %s/bin/activate\n' "${VENV_DIR}"
+  printf '  bash %s/scripts/check_env.sh\n' "${ROOT_DIR}"
   printf '  python -c "import mujoco, gymnasium; print(\"env ok\")"\n'
 }
 

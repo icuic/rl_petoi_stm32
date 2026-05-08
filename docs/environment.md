@@ -13,6 +13,7 @@ cd rl_petoi_stm32
 bash install_codex.sh
 bash scripts/setup_env.sh
 source .venv/bin/activate
+bash scripts/check_env.sh
 ```
 
 ## 设计原则
@@ -21,9 +22,10 @@ source .venv/bin/activate
 - 训练日志、checkpoint、导出模型和视频素材要及时同步到远程仓库、网盘或对象存储。
 - 大文件不直接提交到 Git；后续可接入 Git LFS、Hugging Face Hub、S3 或网盘。
 - 每次新增依赖后同步更新 `requirements.txt` 和本文件。
+- 每次换新服务器后运行 `bash scripts/check_env.sh`，确认 CPU、内存、磁盘、GPU、Python、MuJoCo 和 Stable-Baselines3 状态。
 
 ## 后续可增强项
 
 - 增加 Dockerfile，锁定 CUDA / MuJoCo / Python 版本。
 - 增加 `scripts/sync_artifacts.sh`，统一备份 checkpoint、日志和模型。
-- 增加 `scripts/check_env.sh`，用于快速验证 GPU、MuJoCo 渲染和训练依赖。
+- 增加更完整的 MuJoCo 渲染检查，区分 headless EGL、OSMesa 和本地桌面渲染。
