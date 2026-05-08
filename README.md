@@ -41,6 +41,127 @@
 2. 真机短时行走 / 抗轻扰。
 3. DISCO **实时推理 + 下发指令** 与真机联调。
 
+## 工程化目录结构规划
+
+本仓库按 **训练侧、部署侧、通信侧、真机适配侧、文档演示侧** 分层组织。目标是同时支撑：
+
+- **可演示作品**：每个阶段都有可录屏、可拍摄、可复现的结果。
+- **工程项目深挖**：关键模块有清晰接口、指标记录、资源约束与测试依据。
+
+建议目录结构如下：
+
+```text
+rl_petoi/
+├── README.md
+├── install_codex.sh
+├── docs/
+│   ├── roadmap.md
+│   ├── hardware.md
+│   ├── protocol.md
+│   ├── sim2real.md
+│   ├── deployment.md
+│   └── demo_plan.md
+├── assets/
+│   ├── images/
+│   └── videos/
+├── requirements.txt
+├── sim/
+│   ├── envs/
+│   ├── robots/
+│   ├── tasks/
+│   ├── rewards/
+│   ├── wrappers/
+│   └── tests/
+├── training/
+│   ├── configs/
+│   ├── scripts/
+│   ├── callbacks/
+│   ├── checkpoints/
+│   ├── logs/
+│   └── eval/
+├── models/
+│   ├── exported/
+│   ├── quantized/
+│   └── reports/
+├── tools/
+│   ├── export_model/
+│   ├── quantization/
+│   ├── telemetry/
+│   └── calibration/
+├── firmware/
+│   ├── stm32h747_disco/
+│   │   ├── Core/
+│   │   ├── Drivers/
+│   │   ├── Middlewares/
+│   │   ├── App/
+│   │   │   ├── inference/
+│   │   │   ├── control/
+│   │   │   ├── comm/
+│   │   │   ├── safety/
+│   │   │   └── telemetry/
+│   │   └── README.md
+│   └── petoi_opencat/
+│       ├── protocol_adapter/
+│       ├── joint_command_mode/
+│       └── README.md
+├── protocol/
+│   ├── messages.md
+│   ├── schemas/
+│   └── test_vectors/
+├── experiments/
+│   ├── runs/
+│   ├── notebooks/
+│   └── reports/
+└── scripts/
+    ├── setup_env.sh
+    ├── train.sh
+    ├── evaluate.sh
+    ├── export_policy.sh
+    └── flash_stm32.sh
+```
+
+### 目录职责
+
+- `docs/`：保存项目路线图、硬件连接、通信协议、sim2real、模型部署和演示计划。面试时可直接作为工程说明材料。
+- `assets/`：保存图片、架构图、演示视频素材和最终 demo 截图。
+- `sim/`：MuJoCo / Gymnasium 仿真环境主体，包括机器人模型、任务定义、奖励函数、环境包装器和仿真测试。
+- `training/`：训练入口、算法配置、回调、checkpoint、日志和评估脚本。训练产物不应只散落在本地机器。
+- `models/`：保存导出的策略网络、量化后的 MCU 版本和量化误差 / 推理延迟 / 内存占用报告。
+- `tools/`：放置模型导出、量化、遥测解析、舵机标定等跨平台工具。
+- `firmware/stm32h747_disco/`：STM32H747I-DISCO 固件工程，突出 **MCU 本地推理、运动指令生成、无线通信、安全限幅、遥测输出**。
+- `firmware/petoi_opencat/`：Petoi / OpenCat 侧适配代码。允许修改真机固件后，可实现更直接的关节命令模式或协议适配层。
+- `protocol/`：定义 STM32 与 Bittle 之间的消息格式、测试向量和版本化协议，避免通信逻辑散落在两端代码中。
+- `experiments/`：保存实验记录、训练曲线分析、参数对比和阶段性报告，支撑简历中的量化描述。
+- `scripts/`：统一常用命令入口，让环境重建、训练、评估、导出和烧录尽量脚本化。
+
+### 初期落地顺序
+
+1. 先建立 `docs/`、`sim/`、`training/`、`models/`、`scripts/`，支撑无真机阶段的仿真训练闭环。
+2. 在 STM32H747I-DISCO 上先完成 `firmware/stm32h747_disco/App/inference/` 的空模型或假模型推理框架，提前验证实时任务、内存布局和日志输出。
+3. 等 Bittle 到手后补齐 `protocol/` 与 `firmware/petoi_opencat/`，优先实现无线链路下的关节目标下发与安全回退。
+4. 每个阶段都在 `experiments/reports/` 和 `assets/videos/` 中保存可展示证据，避免最后才补材料。
+
+## 一键环境重建
+
+当前服务器租期只有 7 天，因此本项目把 **可重复搭建环境** 作为基础工程能力。新服务器初始化建议流程：
+
+```bash
+git clone git@github.com:icuic/rl_petoi_stm32.git
+cd rl_petoi_stm32
+bash install_codex.sh
+bash scripts/setup_env.sh
+source .venv/bin/activate
+```
+
+其中：
+
+- `install_codex.sh`：安装 Codex CLI 并开启远程连接。
+- `scripts/setup_env.sh`：创建项目目录、安装 Ubuntu 系统依赖、创建 `.venv`、安装 MuJoCo / Gymnasium / Stable-Baselines3 等 Python 依赖。
+- `requirements.txt`：记录训练侧基础依赖，后续新增库时必须同步更新。
+- `docs/environment.md`：记录环境重建流程、依赖策略和后续增强项。
+
+后续训练产生的 checkpoint、TensorBoard 日志、导出模型和演示视频不宜只保存在租用服务器本地，应定期同步到远程仓库、网盘、对象存储或 Git LFS。
+
 ## 环境与协作说明
 
 - 开发机可能为短周期租用；建议 **代码与依赖可脚本化重建**（Docker / conda export / requirements），**检查点与日志定期备份** 到网盘或私有仓库。
