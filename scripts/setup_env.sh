@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENV_DIR="${ROOT_DIR}/.venv"
-PYTHON_BIN="${PYTHON_BIN:-python3}"
+PYTHON_BIN="${PYTHON_BIN:-python3.9}"
 
 log() {
   printf '\n[%s] %s\n' "$(date '+%H:%M:%S')" "$*"
@@ -64,12 +64,15 @@ install_apt_packages() {
     curl \
     wget \
     python3 \
+    python3.9 \
+    python3.9-venv \
+    python3.9-dev \
     python3-venv \
     python3-pip \
     python3-dev \
     libgl1 \
     libglfw3 \
-    libglew2.2 \
+    libglew-dev \
     libosmesa6 \
     libusb-1.0-0 \
     unzip
@@ -77,7 +80,7 @@ install_apt_packages() {
 
 setup_python_env() {
   log "Creating Python virtual environment at ${VENV_DIR}"
-  "${PYTHON_BIN}" -m venv "${VENV_DIR}"
+  "${PYTHON_BIN}" -m venv --clear "${VENV_DIR}"
   # shellcheck source=/dev/null
   source "${VENV_DIR}/bin/activate"
 

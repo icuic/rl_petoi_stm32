@@ -73,7 +73,7 @@ df -h "${ROOT_DIR}" 2>/dev/null || df -h .
 
 section "GPU"
 if command -v nvidia-smi >/dev/null 2>&1; then
-  if nvidia-smi --query-gpu=name,memory.total,memory.used,driver_version,cuda_version --format=csv,noheader 2>/dev/null; then
+  if nvidia-smi --query-gpu=name,memory.total,memory.used,driver_version --format=csv,noheader 2>/dev/null; then
     ok "nvidia-smi is available"
   else
     fail "nvidia-smi exists but cannot communicate with the NVIDIA driver"
