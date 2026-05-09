@@ -29,6 +29,8 @@ def test_random_actions_run_without_nan():
         assert np.isfinite(info["torso_height"])
         assert np.isfinite(info["roll"])
         assert np.isfinite(info["pitch"])
+        assert "reward_terms" in info
+        assert all(np.isfinite(value) for value in info["reward_terms"].values())
         if terminated or truncated:
             obs, info = env.reset()
 

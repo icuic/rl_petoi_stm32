@@ -56,6 +56,7 @@ def make_env_factory(env_config: dict[str, Any]):
         return SimpleQuadrupedEnv(
             frame_skip=int(env_config.get("frame_skip", 10)),
             episode_steps=int(env_config.get("episode_steps", 1000)),
+            reward_config=env_config.get("reward", {}),
         )
 
     return _make_env

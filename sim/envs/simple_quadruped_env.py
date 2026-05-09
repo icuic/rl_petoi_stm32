@@ -20,6 +20,7 @@ class SimpleQuadrupedEnv(gym.Env):
         model_path: str | Path | None = None,
         frame_skip: int = 10,
         episode_steps: int = 1000,
+        reward_config: dict[str, float] | None = None,
         render_mode: str | None = None,
     ) -> None:
         super().__init__()
@@ -37,6 +38,22 @@ class SimpleQuadrupedEnv(gym.Env):
         self.step_count = 0
         self.phase = 0.0
         self._renderer: mujoco.Renderer | None = None
+        self.previous_action = np.zeros(8, dtype=np.float32)
+        self.reward_config = {
+            "survival": 0.1,
+            "forward": 1.0,
+            "upright": 0.2,
+            "height": 0.5,
+            "roll": 0.15,
+            "pitch": 0.05,
+            "angular_velocity": 0.005,
+            "joint_velocity": 0.0005,
+            "action": 0.002,
+            "action_delta": 0.001,
+            "fall": 0.2,
+        }
+        if reward_config:
+            self.reward_config.update({key: float(value) for key, value in reward_config.items()})
 
         self.joint_qpos_addr = np.arange(7, 15)
         self.joint_qvel_addr = np.arange(6, 14)
@@ -54,6 +71,7 @@ class SimpleQuadrupedEnv(gym.Env):
         mujoco.mj_resetData(self.model, self.data)
         self.step_count = 0
         self.phase = 0.0
+        self.previous_action = np.zeros(8, dtype=np.float32)
 
         self.data.qpos[:7] = np.array([0.0, 0.0, 0.22, 1.0, 0.0, 0.0, 0.0])
         self.data.qpos[self.joint_qpos_addr] = self.neutral_pose
@@ -75,14 +93,14 @@ class SimpleQuadrupedEnv(gym.Env):
         self.step_count += 1
         self.phase = (self.phase + 0.02) % 1.0
 
-        obs = self._get_obs()
-        reward = self._get_reward(action)
         health = self._get_health()
         termination_reason = health["termination_reason"]
         terminated = termination_reason != "healthy"
         truncated = self.step_count >= self.episode_steps
         if truncated and not terminated:
             termination_reason = "timeout"
+        obs = self._get_obs()
+        reward, reward_terms = self._get_reward(action=action, health=health, terminated=terminated)
         info = {
             "x_position": float(self.data.qpos[0]),
             "x_velocity": float(self.data.qvel[0]),
@@ -91,7 +109,9 @@ class SimpleQuadrupedEnv(gym.Env):
             "roll": health["roll"],
             "pitch": health["pitch"],
             "termination_reason": termination_reason,
+            "reward_terms": reward_terms,
         }
+        self.previous_action = action.copy()
         return obs, reward, terminated, truncated, info
 
     def render(self):
@@ -121,12 +141,39 @@ class SimpleQuadrupedEnv(gym.Env):
         )
         return obs.astype(np.float32)
 
-    def _get_reward(self, action: np.ndarray) -> float:
-        forward_reward = self.data.qvel[0]
-        upright_reward = 0.2 * self.data.qpos[3]
-        action_penalty = 0.002 * float(np.square(action).sum())
-        height_penalty = 0.5 * abs(float(self.data.qpos[2]) - 0.22)
-        return float(0.1 + forward_reward + upright_reward - action_penalty - height_penalty)
+    def _get_reward(self, action: np.ndarray, health: dict[str, float | str], terminated: bool) -> tuple[float, dict[str, float]]:
+        weights = self.reward_config
+        roll = float(health["roll"])
+        pitch = float(health["pitch"])
+        action_delta = action - self.previous_action
+
+        terms = {
+            "survival": weights["survival"],
+            "forward": weights["forward"] * float(self.data.qvel[0]),
+            "upright": weights["upright"] * float(self.data.qpos[3]),
+            "height_penalty": weights["height"] * abs(float(health["height"]) - 0.22),
+            "roll_penalty": weights["roll"] * roll * roll,
+            "pitch_penalty": weights["pitch"] * pitch * pitch,
+            "angular_velocity_penalty": weights["angular_velocity"] * float(np.square(self.data.qvel[3:6]).sum()),
+            "joint_velocity_penalty": weights["joint_velocity"] * float(np.square(self.data.qvel[self.joint_qvel_addr]).sum()),
+            "action_penalty": weights["action"] * float(np.square(action).sum()),
+            "action_delta_penalty": weights["action_delta"] * float(np.square(action_delta).sum()),
+            "fall_penalty": weights["fall"] if terminated else 0.0,
+        }
+        reward = (
+            terms["survival"]
+            + terms["forward"]
+            + terms["upright"]
+            - terms["height_penalty"]
+            - terms["roll_penalty"]
+            - terms["pitch_penalty"]
+            - terms["angular_velocity_penalty"]
+            - terms["joint_velocity_penalty"]
+            - terms["action_penalty"]
+            - terms["action_delta_penalty"]
+            - terms["fall_penalty"]
+        )
+        return float(reward), terms
 
     def _get_health(self) -> dict[str, float | str]:
         height = float(self.data.qpos[2])
