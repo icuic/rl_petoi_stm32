@@ -6,6 +6,9 @@ CONFIG_PATH="${1:-training/configs/ppo_simple_quadruped.yaml}"
 
 cd "${ROOT_DIR}"
 
+export MPLCONFIGDIR="${MPLCONFIGDIR:-${ROOT_DIR}/.cache/matplotlib}"
+mkdir -p "${MPLCONFIGDIR}"
+
 if [[ ! -x "${ROOT_DIR}/.venv/bin/python" ]]; then
   echo "Missing virtual environment. Run: bash scripts/setup_env.sh" >&2
   exit 1
