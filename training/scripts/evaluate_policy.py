@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import json
 import sys
 from datetime import datetime, timezone
@@ -95,6 +96,10 @@ def evaluate_episode(model: PPO, env: SimpleQuadrupedEnv, deterministic: bool, s
         "terminated": terminated,
         "truncated": truncated,
         "final_phase": float(last_info.get("phase", 0.0)),
+        "termination_reason": str(last_info.get("termination_reason", "unknown")),
+        "final_torso_height": float(last_info.get("torso_height", np.nan)),
+        "final_roll": float(last_info.get("roll", np.nan)),
+        "final_pitch": float(last_info.get("pitch", np.nan)),
     }
 
 
@@ -103,6 +108,10 @@ def summarize(episodes: list[dict[str, Any]]) -> dict[str, float]:
     steps = np.array([episode["steps"] for episode in episodes], dtype=np.float64)
     distances = np.array([episode["distance_x"] for episode in episodes], dtype=np.float64)
     terminated = np.array([episode["terminated"] for episode in episodes], dtype=np.float64)
+    final_heights = np.array([episode["final_torso_height"] for episode in episodes], dtype=np.float64)
+    final_rolls = np.array([episode["final_roll"] for episode in episodes], dtype=np.float64)
+    final_pitches = np.array([episode["final_pitch"] for episode in episodes], dtype=np.float64)
+    reason_counts = Counter(str(episode["termination_reason"]) for episode in episodes)
 
     return {
         "reward_mean": float(rewards.mean()),
@@ -111,6 +120,10 @@ def summarize(episodes: list[dict[str, Any]]) -> dict[str, float]:
         "distance_x_mean": float(distances.mean()),
         "distance_x_std": float(distances.std()),
         "fall_rate": float(terminated.mean()),
+        "final_torso_height_mean": float(final_heights.mean()),
+        "final_roll_abs_mean": float(np.abs(final_rolls).mean()),
+        "final_pitch_abs_mean": float(np.abs(final_pitches).mean()),
+        "termination_reason_counts": dict(sorted(reason_counts.items())),
     }
 
 

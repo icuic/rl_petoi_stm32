@@ -18,6 +18,17 @@ def test_random_actions_run_without_nan():
         assert np.isfinite(obs).all()
         assert np.isfinite(reward)
         assert 0.0 <= info["phase"] < 1.0
+        assert info["termination_reason"] in {
+            "healthy",
+            "torso_too_low",
+            "torso_too_high",
+            "roll_too_large",
+            "pitch_too_large",
+            "timeout",
+        }
+        assert np.isfinite(info["torso_height"])
+        assert np.isfinite(info["roll"])
+        assert np.isfinite(info["pitch"])
         if terminated or truncated:
             obs, info = env.reset()
 

@@ -69,4 +69,4 @@ python training/scripts/evaluate_policy.py \
 bash scripts/evaluate.sh
 ```
 
-评估报告默认写入 `experiments/reports/simple_quadruped_eval.json`，包含 episode reward、长度、前进距离和摔倒率等指标。
+评估报告默认写入 `experiments/reports/simple_quadruped_eval.json`，包含 episode reward、长度、前进距离、摔倒率、最终姿态和终止原因统计等指标。

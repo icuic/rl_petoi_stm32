@@ -77,12 +77,20 @@ class SimpleQuadrupedEnv(gym.Env):
 
         obs = self._get_obs()
         reward = self._get_reward(action)
-        terminated = self._is_unhealthy()
+        health = self._get_health()
+        termination_reason = health["termination_reason"]
+        terminated = termination_reason != "healthy"
         truncated = self.step_count >= self.episode_steps
+        if truncated and not terminated:
+            termination_reason = "timeout"
         info = {
             "x_position": float(self.data.qpos[0]),
             "x_velocity": float(self.data.qvel[0]),
             "phase": self.phase,
+            "torso_height": health["height"],
+            "roll": health["roll"],
+            "pitch": health["pitch"],
+            "termination_reason": termination_reason,
         }
         return obs, reward, terminated, truncated, info
 
@@ -120,11 +128,28 @@ class SimpleQuadrupedEnv(gym.Env):
         height_penalty = 0.5 * abs(float(self.data.qpos[2]) - 0.22)
         return float(0.1 + forward_reward + upright_reward - action_penalty - height_penalty)
 
-    def _is_unhealthy(self) -> bool:
+    def _get_health(self) -> dict[str, float | str]:
         height = float(self.data.qpos[2])
         quat = self.data.qpos[3:7]
         roll, pitch = _quat_to_roll_pitch(quat)
-        return height < 0.08 or height > 0.45 or abs(roll) > 1.2 or abs(pitch) > 1.2
+
+        if height < 0.08:
+            termination_reason = "torso_too_low"
+        elif height > 0.45:
+            termination_reason = "torso_too_high"
+        elif abs(roll) > 1.2:
+            termination_reason = "roll_too_large"
+        elif abs(pitch) > 1.2:
+            termination_reason = "pitch_too_large"
+        else:
+            termination_reason = "healthy"
+
+        return {
+            "height": height,
+            "roll": roll,
+            "pitch": pitch,
+            "termination_reason": termination_reason,
+        }
 
 
 def _quat_to_roll_pitch(quat: np.ndarray) -> tuple[float, float]:
