@@ -1,0 +1,33 @@
+seed: 7
+total_timesteps: 10000
+device: auto
+
+env:
+  frame_skip: 10
+  episode_steps: 1000
+  n_envs: 1
+
+ppo:
+  learning_rate: 0.0003
+  n_steps: 512
+  batch_size: 64
+  n_epochs: 5
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  ent_coef: 0.0
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  policy_kwargs:
+    net_arch:
+      pi: [64, 64]
+      vf: [64, 64]
+
+paths:
+  log_dir: training/logs/ppo_simple_quadruped
+  checkpoint_dir: training/checkpoints/ppo_simple_quadruped
+  final_model: training/checkpoints/ppo_simple_quadruped/final_model.zip
+
+checkpoint:
+  save_freq: 2000
+  name_prefix: ppo_simple_quadruped
