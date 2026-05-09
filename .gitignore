@@ -22,6 +22,7 @@ experiments/runs/
 *.tflite
 
 # Generated reports and media
+experiments/reports/*.json
 models/reports/*.html
 assets/videos/*.mp4
 assets/videos/*.mov

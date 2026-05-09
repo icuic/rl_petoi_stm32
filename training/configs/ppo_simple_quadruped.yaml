@@ -31,3 +31,8 @@ paths:
 checkpoint:
   save_freq: 2000
   name_prefix: ppo_simple_quadruped
+
+evaluation:
+  episodes: 5
+  deterministic: true
+  report_path: experiments/reports/simple_quadruped_eval.json
