@@ -28,6 +28,32 @@ bash scripts/train.sh
 
 训练日志写入 `training/logs/`，checkpoint 和最终模型写入 `training/checkpoints/`。这些产物默认不纳入 Git。
 
+## TensorBoard
+
+服务器上启动 TensorBoard：
+
+```bash
+bash scripts/tensorboard.sh
+```
+
+推荐使用 SSH 端口转发在本地浏览器访问。先在本地电脑运行：
+
+```bash
+ssh -L 6006:127.0.0.1:6006 ubuntu@<server-ip>
+```
+
+然后打开：
+
+```text
+http://127.0.0.1:6006
+```
+
+默认监听 `127.0.0.1:6006`，如需临时调整：
+
+```bash
+TENSORBOARD_PORT=6007 bash scripts/tensorboard.sh
+```
+
 ## Evaluation
 
 评估当前 final model：
