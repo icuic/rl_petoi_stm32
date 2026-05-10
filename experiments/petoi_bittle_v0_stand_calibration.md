@@ -80,5 +80,5 @@ distance_x_mean              -0.0010
 ```
 
 This is the first successful stand policy on the imported Petoi Bittle MJCF.
-The next target should be making the policy export/record path work for this
-model, then moving to a slow-forward curriculum.
+The export and recording path is captured in
+`experiments/petoi_bittle_v0_stand_milestone.md`.
