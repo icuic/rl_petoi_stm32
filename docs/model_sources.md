@@ -74,6 +74,8 @@ Current helper scripts:
 bash scripts/fetch_petoi_model.sh
 bash scripts/build_petoi_urdf.sh
 bash scripts/validate_petoi_urdf.sh
+bash scripts/build_petoi_mjcf.sh
+bash scripts/validate_petoi_mjcf.sh
 ```
 
 `build_petoi_urdf.sh` writes `build/petoi_bittle/robot.urdf`, copies the 87 STL
@@ -82,3 +84,10 @@ and raises zero diagonal inertia values to a tiny positive value. The generated
 URDF currently loads in MuJoCo with 9 generalized coordinates, 9 joints, 87
 geoms, and 87 meshes. It has no MuJoCo actuators yet; actuator modeling is the
 next conversion step.
+
+`build_petoi_mjcf.sh` writes `build/petoi_bittle/petoi_bittle_v0.xml` by asking
+MuJoCo to import the generated URDF, wrapping the imported robot in a floating
+`bittle_base` body, and adding 8 position actuators for the leg joints. The neck
+joint remains passive for the first training target. The model is still a first
+pass: base-body inertia and servo gains are engineering estimates that should be
+calibrated before long training runs.
