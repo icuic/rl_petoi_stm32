@@ -48,6 +48,7 @@ class SimpleQuadrupedEnv(gym.Env):
         self.render_mode = render_mode
         self.step_count = 0
         self.phase = 0.0
+        self.previous_x_position = 0.0
         self._renderer: mujoco.Renderer | None = None
         self.previous_action = np.zeros(8, dtype=np.float32)
         self.reset_config = {
@@ -64,12 +65,14 @@ class SimpleQuadrupedEnv(gym.Env):
         self.reward_config = {
             "survival": 0.1,
             "forward": 1.0,
+            "progress": 0.0,
             "upright": 0.2,
             "target_height": 0.22,
             "height": 0.5,
             "roll": 0.15,
             "pitch": 0.05,
             "xy_velocity": 0.0,
+            "lateral_velocity": 0.0,
             "vertical_velocity": 0.0,
             "angular_velocity": 0.005,
             "joint_velocity": 0.0005,
@@ -126,6 +129,7 @@ class SimpleQuadrupedEnv(gym.Env):
         mujoco.mj_resetData(self.model, self.data)
         self.step_count = 0
         self.phase = 0.0
+        self.previous_x_position = 0.0
         self.previous_action = np.zeros(8, dtype=np.float32)
 
         joint_noise = float(self.reset_config["joint_noise"])
@@ -138,6 +142,7 @@ class SimpleQuadrupedEnv(gym.Env):
         self.data.qvel[:] = self.np_random.uniform(-velocity_noise, velocity_noise, size=self.model.nv)
         self.data.ctrl[self.actuator_ctrl_addr] = reset_pose
         mujoco.mj_forward(self.model, self.data)
+        self.previous_x_position = float(self.data.qpos[0])
 
         return self._get_obs(), {"phase": self.phase, "control_mode": self.control_mode}
 
@@ -146,8 +151,11 @@ class SimpleQuadrupedEnv(gym.Env):
         action = np.clip(action, self.action_space.low, self.action_space.high)
 
         target = self._normalized_action_to_joint_targets(action)
+        previous_x_position = float(self.data.qpos[0])
         self.data.ctrl[self.actuator_ctrl_addr] = target
         mujoco.mj_step(self.model, self.data, nstep=self.frame_skip)
+        x_position = float(self.data.qpos[0])
+        x_progress = x_position - previous_x_position
 
         self.step_count += 1
         self.phase = (self.phase + 1.0 / self.gait_period_steps) % 1.0
@@ -159,10 +167,16 @@ class SimpleQuadrupedEnv(gym.Env):
         if truncated and not terminated:
             termination_reason = "timeout"
         obs = self._get_obs()
-        reward, reward_terms = self._get_reward(action=action, health=health, terminated=terminated)
+        reward, reward_terms = self._get_reward(
+            action=action,
+            health=health,
+            terminated=terminated,
+            x_progress=x_progress,
+        )
         info = {
-            "x_position": float(self.data.qpos[0]),
+            "x_position": x_position,
             "x_velocity": float(self.data.qvel[0]),
+            "x_progress": x_progress,
             "phase": self.phase,
             "torso_height": health["height"],
             "roll": health["roll"],
@@ -172,6 +186,7 @@ class SimpleQuadrupedEnv(gym.Env):
             "reward_terms": reward_terms,
         }
         self.previous_action = action.copy()
+        self.previous_x_position = x_position
         return obs, reward, terminated, truncated, info
 
     def render(self):
@@ -217,7 +232,13 @@ class SimpleQuadrupedEnv(gym.Env):
             )
         return self.neutral_pose
 
-    def _get_reward(self, action: np.ndarray, health: dict[str, float | str], terminated: bool) -> tuple[float, dict[str, float]]:
+    def _get_reward(
+        self,
+        action: np.ndarray,
+        health: dict[str, float | str],
+        terminated: bool,
+        x_progress: float,
+    ) -> tuple[float, dict[str, float]]:
         weights = self.reward_config
         roll = float(health["roll"])
         pitch = float(health["pitch"])
@@ -227,28 +248,32 @@ class SimpleQuadrupedEnv(gym.Env):
         terms = {
             "survival": weights["survival"],
             "forward": weights["forward"] * float(self.data.qvel[0]),
+            "progress": weights["progress"] * float(x_progress),
             "upright": weights["upright"] * float(self.data.qpos[3]),
             "height_penalty": weights["height"] * abs(float(health["height"]) - weights["target_height"]),
             "roll_penalty": weights["roll"] * roll * roll,
             "pitch_penalty": weights["pitch"] * pitch * pitch,
             "xy_velocity_penalty": weights["xy_velocity"] * float(np.square(self.data.qvel[0:2]).sum()),
+            "lateral_velocity_penalty": weights["lateral_velocity"] * float(self.data.qvel[1] * self.data.qvel[1]),
             "vertical_velocity_penalty": weights["vertical_velocity"] * float(self.data.qvel[2] * self.data.qvel[2]),
             "angular_velocity_penalty": weights["angular_velocity"] * float(np.square(self.data.qvel[3:6]).sum()),
             "joint_velocity_penalty": weights["joint_velocity"] * float(np.square(self.data.qvel[self.joint_qvel_addr]).sum()),
             "joint_position_penalty": weights["joint_position"] * float(np.square(self.data.qpos[self.joint_qpos_addr] - reference).sum()),
             "action_penalty": weights["action"] * float(np.square(action).sum()),
             "action_delta_penalty": weights["action_delta"] * float(np.square(action_delta).sum()),
-            "drift_penalty": weights["drift"] * float(np.square(self.data.qpos[0:2]).sum()),
+            "drift_penalty": weights["drift"] * float(self.data.qpos[1] * self.data.qpos[1]),
             "fall_penalty": weights["fall"] if terminated else 0.0,
         }
         reward = (
             terms["survival"]
             + terms["forward"]
+            + terms["progress"]
             + terms["upright"]
             - terms["height_penalty"]
             - terms["roll_penalty"]
             - terms["pitch_penalty"]
             - terms["xy_velocity_penalty"]
+            - terms["lateral_velocity_penalty"]
             - terms["vertical_velocity_penalty"]
             - terms["angular_velocity_penalty"]
             - terms["joint_velocity_penalty"]

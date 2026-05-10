@@ -1,0 +1,95 @@
+seed: 23
+total_timesteps: 30000
+device: auto
+
+env:
+  model_path: build/petoi_bittle/petoi_bittle_v0.xml
+  frame_skip: 10
+  episode_steps: 1000
+  n_envs: 1
+  control:
+    mode: residual_trot
+    joint_names:
+      - shrfs_joint
+      - shrft_joint
+      - shrrs_joint
+      - shrrt_joint
+      - shlfs_joint
+      - shlft_joint
+      - shlrs_joint
+      - shlrt_joint
+    actuator_names:
+      - shrfs_joint_pos
+      - shrft_joint_pos
+      - shrrs_joint_pos
+      - shrrt_joint_pos
+      - shlfs_joint_pos
+      - shlft_joint_pos
+      - shlrs_joint_pos
+      - shlrt_joint_pos
+    neutral_pose: [0.2, 1.4, 0.2, 1.4, 0.2, 1.4, 0.2, 1.4]
+    action_scale: [0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12]
+    gait:
+      period_steps: 120
+      shoulder_amplitude: 0.08
+      knee_amplitude: 0.12
+      duty_bias: 0.0
+  reset:
+    torso_height: 0.18
+    joint_noise: 0.004
+    velocity_noise: 0.003
+    min_torso_height: 0.025
+    max_torso_height: 0.28
+    max_roll: 0.75
+    max_pitch: 0.75
+  reward:
+    survival: 0.05
+    forward: 0.05
+    progress: 500.0
+    upright: 0.1
+    target_height: 0.049
+    height: 0.45
+    roll: 0.25
+    pitch: 0.25
+    xy_velocity: 0.0
+    lateral_velocity: 0.04
+    vertical_velocity: 0.08
+    angular_velocity: 0.03
+    joint_velocity: 0.0008
+    joint_position: 0.04
+    action: 0.015
+    action_delta: 0.01
+    drift: 1.0
+    fall: 1.0
+
+ppo:
+  learning_rate: 0.00025
+  n_steps: 512
+  batch_size: 64
+  n_epochs: 5
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  ent_coef: 0.0
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  policy_kwargs:
+    log_std_init: -2.0
+    net_arch:
+      pi: [64, 64]
+      vf: [64, 64]
+
+paths:
+  init_model: training/checkpoints/ppo_petoi_bittle_v0_stand/final_model.zip
+  log_dir: training/logs/ppo_petoi_bittle_v0_trot_residual_v2
+  checkpoint_dir: training/checkpoints/ppo_petoi_bittle_v0_trot_residual_v2
+  final_model: training/checkpoints/ppo_petoi_bittle_v0_trot_residual_v2/final_model.zip
+
+checkpoint:
+  save_freq: 3000
+  name_prefix: ppo_petoi_bittle_v0_trot_residual_v2
+
+evaluation:
+  episodes: 10
+  deterministic: true
+  report_path: experiments/reports/petoi_bittle_v0_trot_residual_v2_eval.json

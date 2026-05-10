@@ -13,4 +13,5 @@
 - `petoi_bittle_v0_slow_forward.md`：记录 Petoi stand warm-start 后加入弱前进奖励的首次 slow-forward baseline。
 - `petoi_bittle_v0_open_loop_trot.md`：记录 Petoi phase-based trot reference 的首次 open-loop 扫描。
 - `petoi_bittle_v0_trot_residual.md`：记录 Petoi trot reference 上的第一版 PPO residual baseline。
+- `petoi_bittle_v0_trot_residual_v2.md`：记录加入 per-step progress reward 后的 residual trot v2 baseline。
 - `reports/`：保存生成的评估 JSON，默认不纳入 Git 跟踪。

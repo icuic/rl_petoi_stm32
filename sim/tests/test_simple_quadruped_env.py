@@ -43,6 +43,7 @@ def test_random_actions_run_without_nan():
         assert np.isfinite(info["torso_height"])
         assert np.isfinite(info["roll"])
         assert np.isfinite(info["pitch"])
+        assert np.isfinite(info["x_progress"])
         assert "reward_terms" in info
         assert all(np.isfinite(value) for value in info["reward_terms"].values())
         if terminated or truncated:
@@ -181,8 +182,10 @@ def test_reset_and_reward_config_are_applied():
         reset_config={"torso_height": 0.19, "joint_noise": 0.0, "velocity_noise": 0.0},
         reward_config={
             "forward": 0.0,
+            "progress": 1.0,
             "target_height": 0.18,
             "xy_velocity": 0.08,
+            "lateral_velocity": 0.08,
             "vertical_velocity": 0.08,
             "joint_position": 0.02,
             "drift": 0.1,
@@ -198,7 +201,9 @@ def test_reset_and_reward_config_are_applied():
     assert obs.shape == (OBSERVATION_DIM,)
     assert np.isfinite(reward)
     assert not truncated
+    assert "progress" in info["reward_terms"]
     assert "xy_velocity_penalty" in info["reward_terms"]
+    assert "lateral_velocity_penalty" in info["reward_terms"]
     assert "joint_position_penalty" in info["reward_terms"]
     assert "drift_penalty" in info["reward_terms"]
 
