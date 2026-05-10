@@ -124,3 +124,5 @@ This is the first stable Bittle-like milestone. The policy is not a walking cont
 - Keep low exploration noise for early locomotion.
 - Gradually relax action and drift penalties.
 - Compare warm-starting locomotion from the stand policy versus training locomotion from scratch.
+
+Follow-up: `bittle_like_v0_slow_forward.md` keeps the robot stable for 1000 steps, but the first small forward reward is not enough to produce positive forward displacement.

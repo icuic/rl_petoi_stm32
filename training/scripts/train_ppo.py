@@ -74,6 +74,7 @@ def main() -> None:
     ppo_config = config.get("ppo", {})
     paths_config = config.get("paths", {})
     checkpoint_config = config.get("checkpoint", {})
+    init_model = paths_config.get("init_model")
 
     log_dir = Path(paths_config.get("log_dir", "training/logs/ppo_simple_quadruped"))
     checkpoint_dir = Path(paths_config.get("checkpoint_dir", "training/checkpoints/ppo_simple_quadruped"))
@@ -101,15 +102,29 @@ def main() -> None:
         save_vecnormalize=False,
     )
 
-    model = PPO(
-        policy="MlpPolicy",
-        env=env,
-        tensorboard_log=str(log_dir),
-        seed=seed,
-        device=config.get("device", "auto"),
-        verbose=1,
-        **ppo_config,
-    )
+    if init_model:
+        init_model_path = Path(init_model)
+        if not init_model_path.exists():
+            raise FileNotFoundError(f"Initial model not found: {init_model_path}")
+        model = PPO.load(
+            str(init_model_path),
+            env=env,
+            device=config.get("device", "auto"),
+            tensorboard_log=str(log_dir),
+            seed=seed,
+            verbose=1,
+        )
+        print(f"Loaded initial model from {init_model_path}")
+    else:
+        model = PPO(
+            policy="MlpPolicy",
+            env=env,
+            tensorboard_log=str(log_dir),
+            seed=seed,
+            device=config.get("device", "auto"),
+            verbose=1,
+            **ppo_config,
+        )
     model.learn(total_timesteps=total_timesteps, callback=callback, progress_bar=False)
     model.save(str(final_model))
     env.close()

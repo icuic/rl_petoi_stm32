@@ -40,6 +40,14 @@ Bittle-like v0 站立稳定任务：
 bash scripts/train.sh training/configs/ppo_bittle_like_v0_stand.yaml
 ```
 
+Bittle-like v0 慢速前进 curriculum：
+
+```bash
+bash scripts/train.sh training/configs/ppo_bittle_like_v0_slow_forward.yaml
+```
+
+该配置默认从 `training/checkpoints/ppo_bittle_like_v0_stand/final_model.zip` warm-start，因此新服务器上需要先完成 stand 训练。
+
 ## TensorBoard
 
 服务器上启动 TensorBoard：
