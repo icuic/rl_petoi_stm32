@@ -169,6 +169,7 @@ bash scripts/check_env.sh
 - `training/configs/ppo_bittle_like_v0.yaml`：面向 Petoi Bittle 形态迁移的 v0 近似模型，用于后续站立稳定与步态迁移实验。
 - `training/configs/ppo_bittle_like_v0_stand.yaml`：Bittle-like v0 的站立稳定任务，用于先解决窄站姿 roll 翻倒，再进入前进步态。
 - `training/configs/ppo_bittle_like_v0_slow_forward.yaml`：从 stand policy warm-start 的慢速前进 curriculum。
+- `training/configs/ppo_bittle_like_v1_visual_stand.yaml`：更接近 Bittle 外观的 v1 visual 模型站立 smoke test。
 
 后续训练产生的 checkpoint、TensorBoard 日志、导出模型和演示视频不宜只保存在租用服务器本地，应定期同步到远程仓库、网盘、对象存储或 Git LFS。
 

@@ -6,6 +6,7 @@
 
 - `robots/simple_quadruped.xml`：最小 8 自由度四足 MuJoCo 模型，使用位置执行器控制髋/膝关节。
 - `robots/bittle_like_v0.xml`：面向 Petoi Bittle 迁移的 8 自由度近似模型，保留当前策略接口的关节顺序，同时调整机身比例、腿长、质量和执行器约束。
+- `robots/bittle_like_v1_visual.xml`：更接近 Bittle X V2 外观的视觉/比例模型，增加头部、尾巴、舵机盒、蓝/黄/红配色和更接近真实的站姿宽度；仍保持 8 个腿部动作接口。
 - `envs/simple_quadruped_env.py`：Gymnasium 环境，动作为空间 `Box(-1, 1, shape=(8,))`，观测包含机身高度、姿态四元数、速度、关节状态和步态相位；`info` 中会输出机身高度、roll/pitch 和 `termination_reason`。
 - `envs/simple_quadruped_interface.py`：控制接口常量，定义 observation/action 维度、关节顺序、neutral pose、action scale 和归一化动作到关节目标的映射。
 - reward 当前包含前进、存活、姿态、机身高度、机身速度、角速度、关节速度、关节姿态、动作幅度、动作平滑、水平漂移和摔倒惩罚，权重由训练配置中的 `env.reward` 控制。

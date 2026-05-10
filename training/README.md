@@ -48,6 +48,12 @@ bash scripts/train.sh training/configs/ppo_bittle_like_v0_slow_forward.yaml
 
 该配置默认从 `training/checkpoints/ppo_bittle_like_v0_stand/final_model.zip` warm-start，因此新服务器上需要先完成 stand 训练。
 
+Bittle-like v1 visual 站立任务：
+
+```bash
+bash scripts/train.sh training/configs/ppo_bittle_like_v1_visual_stand.yaml
+```
+
 ## TensorBoard
 
 服务器上启动 TensorBoard：

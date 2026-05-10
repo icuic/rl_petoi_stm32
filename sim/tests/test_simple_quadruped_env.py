@@ -92,6 +92,7 @@ def test_supported_robot_models_load_and_step():
     model_paths = [
         "sim/robots/simple_quadruped.xml",
         "sim/robots/bittle_like_v0.xml",
+        "sim/robots/bittle_like_v1_visual.xml",
     ]
 
     for model_path in model_paths:

@@ -1,0 +1,61 @@
+seed: 17
+total_timesteps: 20000
+device: auto
+
+env:
+  model_path: sim/robots/bittle_like_v1_visual.xml
+  frame_skip: 10
+  episode_steps: 1000
+  n_envs: 1
+  reset:
+    torso_height: 0.16
+    joint_noise: 0.01
+    velocity_noise: 0.005
+  reward:
+    survival: 0.2
+    forward: 0.0
+    upright: 0.25
+    target_height: 0.11
+    height: 0.4
+    roll: 0.3
+    pitch: 0.3
+    xy_velocity: 0.08
+    vertical_velocity: 0.08
+    angular_velocity: 0.02
+    joint_velocity: 0.001
+    joint_position: 0.1
+    action: 0.02
+    action_delta: 0.01
+    drift: 0.1
+    fall: 1.0
+
+ppo:
+  learning_rate: 0.0003
+  n_steps: 512
+  batch_size: 64
+  n_epochs: 5
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  ent_coef: 0.0
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  policy_kwargs:
+    log_std_init: -2.0
+    net_arch:
+      pi: [64, 64]
+      vf: [64, 64]
+
+paths:
+  log_dir: training/logs/ppo_bittle_like_v1_visual_stand
+  checkpoint_dir: training/checkpoints/ppo_bittle_like_v1_visual_stand
+  final_model: training/checkpoints/ppo_bittle_like_v1_visual_stand/final_model.zip
+
+checkpoint:
+  save_freq: 2000
+  name_prefix: ppo_bittle_like_v1_visual_stand
+
+evaluation:
+  episodes: 10
+  deterministic: true
+  report_path: experiments/reports/bittle_like_v1_visual_stand_eval.json
