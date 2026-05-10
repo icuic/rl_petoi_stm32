@@ -16,4 +16,5 @@
 - `petoi_bittle_v0_trot_residual_v2.md`：记录加入 per-step progress reward 后的 residual trot v2 baseline。
 - `petoi_bittle_v0_zero_action_residual_trot.md`：记录 Gym 环境中 zero-action residual trot 的 phase timing 诊断。
 - `petoi_bittle_v0_trot_residual_v3_phase_fixed.md`：记录修正 phase timing 后的 PPO residual trot 前进基线。
+- `petoi_bittle_v0_trot_residual_v3_phase_fixed_100k_continue.md`：记录 v3 phase-fixed 策略继续训练 100k 后的当前最佳前进基线。
 - `reports/`：保存生成的评估 JSON，默认不纳入 Git 跟踪。
