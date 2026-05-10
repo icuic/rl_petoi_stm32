@@ -70,6 +70,7 @@ def make_env(env_config: dict[str, Any]) -> SimpleQuadrupedEnv:
         frame_skip=int(env_config.get("frame_skip", 10)),
         episode_steps=int(env_config.get("episode_steps", 1000)),
         reward_config=env_config.get("reward", {}),
+        reset_config=env_config.get("reset", {}),
     )
 
 

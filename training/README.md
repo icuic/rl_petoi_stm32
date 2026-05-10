@@ -34,6 +34,12 @@ Bittle-like v0 模型 sanity training：
 bash scripts/train.sh training/configs/ppo_bittle_like_v0.yaml
 ```
 
+Bittle-like v0 站立稳定任务：
+
+```bash
+bash scripts/train.sh training/configs/ppo_bittle_like_v0_stand.yaml
+```
+
 ## TensorBoard
 
 服务器上启动 TensorBoard：

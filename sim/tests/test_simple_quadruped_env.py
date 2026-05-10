@@ -113,3 +113,33 @@ def test_supported_robot_models_load_and_step():
             "pitch_too_large",
         }
         env.close()
+
+
+def test_reset_and_reward_config_are_applied():
+    env = SimpleQuadrupedEnv(
+        model_path="sim/robots/bittle_like_v0.xml",
+        reset_config={"torso_height": 0.19, "joint_noise": 0.0, "velocity_noise": 0.0},
+        reward_config={
+            "forward": 0.0,
+            "target_height": 0.18,
+            "xy_velocity": 0.08,
+            "vertical_velocity": 0.08,
+            "joint_position": 0.02,
+            "drift": 0.1,
+        },
+    )
+
+    obs, _ = env.reset(seed=7)
+    assert obs.shape == (OBSERVATION_DIM,)
+    assert np.isclose(float(obs[0]), 0.19)
+    np.testing.assert_allclose(obs[11:19], NEUTRAL_POSE_RAD, atol=1e-6)
+
+    obs, reward, terminated, truncated, info = env.step(np.zeros(ACTION_DIM, dtype=np.float32))
+    assert obs.shape == (OBSERVATION_DIM,)
+    assert np.isfinite(reward)
+    assert not truncated
+    assert "xy_velocity_penalty" in info["reward_terms"]
+    assert "joint_position_penalty" in info["reward_terms"]
+    assert "drift_penalty" in info["reward_terms"]
+
+    env.close()

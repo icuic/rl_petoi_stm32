@@ -8,7 +8,8 @@
 - `robots/bittle_like_v0.xml`：面向 Petoi Bittle 迁移的 8 自由度近似模型，保留当前策略接口的关节顺序，同时调整机身比例、腿长、质量和执行器约束。
 - `envs/simple_quadruped_env.py`：Gymnasium 环境，动作为空间 `Box(-1, 1, shape=(8,))`，观测包含机身高度、姿态四元数、速度、关节状态和步态相位；`info` 中会输出机身高度、roll/pitch 和 `termination_reason`。
 - `envs/simple_quadruped_interface.py`：控制接口常量，定义 observation/action 维度、关节顺序、neutral pose、action scale 和归一化动作到关节目标的映射。
-- reward 当前包含前进、存活、姿态、机身高度、角速度、关节速度、动作幅度、动作平滑和摔倒惩罚，权重由训练配置中的 `env.reward` 控制。
+- reward 当前包含前进、存活、姿态、机身高度、机身速度、角速度、关节速度、关节姿态、动作幅度、动作平滑、水平漂移和摔倒惩罚，权重由训练配置中的 `env.reward` 控制。
+- reset 初始高度、关节噪声和速度噪声由训练配置中的 `env.reset` 控制，用于 Bittle-like 站立任务和后续 curriculum。
 - `tests/test_simple_quadruped_env.py`：随机动作 smoke test，用于确认环境能稳定 reset/step。
 
 ## 验证

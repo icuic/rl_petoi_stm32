@@ -91,3 +91,5 @@ The policy does not yet walk. It falls by roll after roughly 20-30 steps. This i
 - Add a short stand-still stabilization task before forward locomotion.
 - Consider lowering early forward reward pressure and adding a stronger lateral stability curriculum.
 - Inspect whether the narrower stance needs different `neutral_pose` or action scale before training.
+
+Follow-up: `bittle_like_v0_stand.md` shows that stand-still stabilization succeeds after lowering PPO's initial exploration noise with `log_std_init: -2.0`.

@@ -29,6 +29,7 @@ class SimpleQuadrupedEnv(gym.Env):
         frame_skip: int = 10,
         episode_steps: int = 1000,
         reward_config: dict[str, float] | None = None,
+        reset_config: dict[str, float] | None = None,
         render_mode: str | None = None,
     ) -> None:
         super().__init__()
@@ -47,17 +48,29 @@ class SimpleQuadrupedEnv(gym.Env):
         self.phase = 0.0
         self._renderer: mujoco.Renderer | None = None
         self.previous_action = np.zeros(8, dtype=np.float32)
+        self.reset_config = {
+            "torso_height": 0.22,
+            "joint_noise": 0.02,
+            "velocity_noise": 0.01,
+        }
+        if reset_config:
+            self.reset_config.update({key: float(value) for key, value in reset_config.items()})
         self.reward_config = {
             "survival": 0.1,
             "forward": 1.0,
             "upright": 0.2,
+            "target_height": 0.22,
             "height": 0.5,
             "roll": 0.15,
             "pitch": 0.05,
+            "xy_velocity": 0.0,
+            "vertical_velocity": 0.0,
             "angular_velocity": 0.005,
             "joint_velocity": 0.0005,
+            "joint_position": 0.0,
             "action": 0.002,
             "action_delta": 0.001,
+            "drift": 0.0,
             "fall": 0.2,
         }
         if reward_config:
@@ -78,10 +91,13 @@ class SimpleQuadrupedEnv(gym.Env):
         self.phase = 0.0
         self.previous_action = np.zeros(8, dtype=np.float32)
 
-        self.data.qpos[:7] = np.array([0.0, 0.0, 0.22, 1.0, 0.0, 0.0, 0.0])
+        joint_noise = float(self.reset_config["joint_noise"])
+        velocity_noise = float(self.reset_config["velocity_noise"])
+
+        self.data.qpos[:7] = np.array([0.0, 0.0, self.reset_config["torso_height"], 1.0, 0.0, 0.0, 0.0])
         self.data.qpos[self.joint_qpos_addr] = self.neutral_pose
-        self.data.qpos[self.joint_qpos_addr] += self.np_random.uniform(-0.02, 0.02, size=8)
-        self.data.qvel[:] = self.np_random.uniform(-0.01, 0.01, size=self.model.nv)
+        self.data.qpos[self.joint_qpos_addr] += self.np_random.uniform(-joint_noise, joint_noise, size=8)
+        self.data.qvel[:] = self.np_random.uniform(-velocity_noise, velocity_noise, size=self.model.nv)
         self.data.ctrl[:] = self.neutral_pose
         mujoco.mj_forward(self.model, self.data)
 
@@ -156,13 +172,17 @@ class SimpleQuadrupedEnv(gym.Env):
             "survival": weights["survival"],
             "forward": weights["forward"] * float(self.data.qvel[0]),
             "upright": weights["upright"] * float(self.data.qpos[3]),
-            "height_penalty": weights["height"] * abs(float(health["height"]) - 0.22),
+            "height_penalty": weights["height"] * abs(float(health["height"]) - weights["target_height"]),
             "roll_penalty": weights["roll"] * roll * roll,
             "pitch_penalty": weights["pitch"] * pitch * pitch,
+            "xy_velocity_penalty": weights["xy_velocity"] * float(np.square(self.data.qvel[0:2]).sum()),
+            "vertical_velocity_penalty": weights["vertical_velocity"] * float(self.data.qvel[2] * self.data.qvel[2]),
             "angular_velocity_penalty": weights["angular_velocity"] * float(np.square(self.data.qvel[3:6]).sum()),
             "joint_velocity_penalty": weights["joint_velocity"] * float(np.square(self.data.qvel[self.joint_qvel_addr]).sum()),
+            "joint_position_penalty": weights["joint_position"] * float(np.square(self.data.qpos[self.joint_qpos_addr] - self.neutral_pose).sum()),
             "action_penalty": weights["action"] * float(np.square(action).sum()),
             "action_delta_penalty": weights["action_delta"] * float(np.square(action_delta).sum()),
+            "drift_penalty": weights["drift"] * float(np.square(self.data.qpos[0:2]).sum()),
             "fall_penalty": weights["fall"] if terminated else 0.0,
         }
         reward = (
@@ -172,10 +192,14 @@ class SimpleQuadrupedEnv(gym.Env):
             - terms["height_penalty"]
             - terms["roll_penalty"]
             - terms["pitch_penalty"]
+            - terms["xy_velocity_penalty"]
+            - terms["vertical_velocity_penalty"]
             - terms["angular_velocity_penalty"]
             - terms["joint_velocity_penalty"]
+            - terms["joint_position_penalty"]
             - terms["action_penalty"]
             - terms["action_delta_penalty"]
+            - terms["drift_penalty"]
             - terms["fall_penalty"]
         )
         return float(reward), terms

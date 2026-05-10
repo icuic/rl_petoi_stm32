@@ -167,6 +167,7 @@ bash scripts/check_env.sh
 
 - `training/configs/ppo_simple_quadruped.yaml`：最小四足稳定 gait 基线。
 - `training/configs/ppo_bittle_like_v0.yaml`：面向 Petoi Bittle 形态迁移的 v0 近似模型，用于后续站立稳定与步态迁移实验。
+- `training/configs/ppo_bittle_like_v0_stand.yaml`：Bittle-like v0 的站立稳定任务，用于先解决窄站姿 roll 翻倒，再进入前进步态。
 
 后续训练产生的 checkpoint、TensorBoard 日志、导出模型和演示视频不宜只保存在租用服务器本地，应定期同步到远程仓库、网盘、对象存储或 Git LFS。
 
