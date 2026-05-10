@@ -1,6 +1,19 @@
+import json
+from pathlib import Path
+
 import numpy as np
 
-from sim.envs import SimpleQuadrupedEnv
+from sim.envs import (
+    ACTION_DIM,
+    ACTION_LAYOUT,
+    ACTION_SCALE_RAD,
+    JOINT_NAMES,
+    NEUTRAL_POSE_RAD,
+    OBSERVATION_DIM,
+    OBSERVATION_LAYOUT,
+    SimpleQuadrupedEnv,
+    normalized_action_to_joint_targets,
+)
 
 
 def test_random_actions_run_without_nan():
@@ -35,3 +48,41 @@ def test_random_actions_run_without_nan():
             obs, info = env.reset()
 
     env.close()
+
+
+def test_control_interface_layout_matches_environment():
+    env = SimpleQuadrupedEnv()
+
+    assert env.observation_space.shape == (OBSERVATION_DIM,)
+    assert env.action_space.shape == (ACTION_DIM,)
+    assert len(JOINT_NAMES) == ACTION_DIM
+    assert len(ACTION_LAYOUT) == ACTION_DIM
+    assert OBSERVATION_LAYOUT[-1] == ("phase_sin_cos", 27, 29)
+    assert NEUTRAL_POSE_RAD.shape == (ACTION_DIM,)
+    assert ACTION_SCALE_RAD.shape == (ACTION_DIM,)
+
+    zero_action = np.zeros(ACTION_DIM, dtype=np.float32)
+    np.testing.assert_allclose(normalized_action_to_joint_targets(zero_action), NEUTRAL_POSE_RAD)
+
+    saturated_action = np.ones(ACTION_DIM, dtype=np.float32) * 2.0
+    np.testing.assert_allclose(
+        normalized_action_to_joint_targets(saturated_action),
+        NEUTRAL_POSE_RAD + ACTION_SCALE_RAD,
+    )
+
+    env.close()
+
+
+def test_control_interface_v0_test_vector():
+    vector_path = Path("protocol/test_vectors/control_interface_v0.json")
+    with vector_path.open("r", encoding="utf-8") as f:
+        vector = json.load(f)
+
+    assert vector["interface_version"] == "control_interface_v0"
+    assert len(vector["observation"]) == OBSERVATION_DIM
+    assert len(vector["normalized_action"]) == ACTION_DIM
+    assert len(vector["expected_joint_target_rad"]) == ACTION_DIM
+
+    action = np.asarray(vector["normalized_action"], dtype=np.float32)
+    expected = np.asarray(vector["expected_joint_target_rad"], dtype=np.float32)
+    np.testing.assert_allclose(normalized_action_to_joint_targets(action), expected)

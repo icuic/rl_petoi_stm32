@@ -9,6 +9,14 @@ import mujoco
 import numpy as np
 from gymnasium import spaces
 
+from sim.envs.simple_quadruped_interface import (
+    ACTION_DIM,
+    ACTION_SCALE_RAD,
+    NEUTRAL_POSE_RAD,
+    OBSERVATION_DIM,
+    normalized_action_to_joint_targets,
+)
+
 
 class SimpleQuadrupedEnv(gym.Env):
     """A small 8-DoF quadruped controlled by normalized joint targets."""
@@ -57,14 +65,11 @@ class SimpleQuadrupedEnv(gym.Env):
 
         self.joint_qpos_addr = np.arange(7, 15)
         self.joint_qvel_addr = np.arange(6, 14)
-        self.neutral_pose = np.array(
-            [0.15, -0.75, 0.15, -0.75, -0.15, -0.75, -0.15, -0.75],
-            dtype=np.float32,
-        )
-        self.action_scale = np.array([0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55], dtype=np.float32)
+        self.neutral_pose = NEUTRAL_POSE_RAD.copy()
+        self.action_scale = ACTION_SCALE_RAD.copy()
 
-        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(8,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(29,), dtype=np.float32)
+        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(ACTION_DIM,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(OBSERVATION_DIM,), dtype=np.float32)
 
     def reset(self, *, seed: int | None = None, options: dict | None = None):
         super().reset(seed=seed)
@@ -86,7 +91,7 @@ class SimpleQuadrupedEnv(gym.Env):
         action = np.asarray(action, dtype=np.float32)
         action = np.clip(action, self.action_space.low, self.action_space.high)
 
-        target = self.neutral_pose + action * self.action_scale
+        target = normalized_action_to_joint_targets(action)
         self.data.ctrl[:] = target
         mujoco.mj_step(self.model, self.data, nstep=self.frame_skip)
 
