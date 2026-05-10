@@ -10,4 +10,5 @@
 - `bittle_like_v1_visual.md`：记录更接近 Bittle 外观的 v1 visual 模型和站立 smoke test。
 - `petoi_bittle_v0_stand_calibration.md`：记录官方 Petoi MJCF 的站姿扫描、stand policy 训练和评估结果。
 - `petoi_bittle_v0_stand_milestone.md`：记录 Petoi stand policy 的视频录制、ONNX 导出和 parity 验证闭环。
+- `petoi_bittle_v0_slow_forward.md`：记录 Petoi stand warm-start 后加入弱前进奖励的首次 slow-forward baseline。
 - `reports/`：保存生成的评估 JSON，默认不纳入 Git 跟踪。
