@@ -3,7 +3,7 @@ total_timesteps: 10000
 device: auto
 
 env:
-  model_path: sim/robots/simple_quadruped.xml
+  model_path: sim/robots/bittle_like_v0.xml
   frame_skip: 10
   episode_steps: 1000
   n_envs: 1
@@ -37,15 +37,15 @@ ppo:
       vf: [64, 64]
 
 paths:
-  log_dir: training/logs/ppo_simple_quadruped
-  checkpoint_dir: training/checkpoints/ppo_simple_quadruped
-  final_model: training/checkpoints/ppo_simple_quadruped/final_model.zip
+  log_dir: training/logs/ppo_bittle_like_v0
+  checkpoint_dir: training/checkpoints/ppo_bittle_like_v0
+  final_model: training/checkpoints/ppo_bittle_like_v0/final_model.zip
 
 checkpoint:
   save_freq: 2000
-  name_prefix: ppo_simple_quadruped
+  name_prefix: ppo_bittle_like_v0
 
 evaluation:
   episodes: 5
   deterministic: true
-  report_path: experiments/reports/simple_quadruped_eval.json
+  report_path: experiments/reports/bittle_like_v0_eval.json

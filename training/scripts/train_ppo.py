@@ -54,6 +54,7 @@ def load_config(path: Path) -> dict[str, Any]:
 def make_env_factory(env_config: dict[str, Any]):
     def _make_env():
         return SimpleQuadrupedEnv(
+            model_path=env_config.get("model_path"),
             frame_skip=int(env_config.get("frame_skip", 10)),
             episode_steps=int(env_config.get("episode_steps", 1000)),
             reward_config=env_config.get("reward", {}),

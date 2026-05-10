@@ -28,6 +28,12 @@ bash scripts/train.sh
 
 训练日志写入 `training/logs/`，checkpoint 和最终模型写入 `training/checkpoints/`。这些产物默认不纳入 Git。
 
+Bittle-like v0 模型 sanity training：
+
+```bash
+bash scripts/train.sh training/configs/ppo_bittle_like_v0.yaml
+```
+
 ## TensorBoard
 
 服务器上启动 TensorBoard：

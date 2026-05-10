@@ -163,6 +163,11 @@ bash scripts/check_env.sh
 - `requirements.txt`：记录训练侧基础依赖，后续新增库时必须同步更新。
 - `docs/environment.md`：记录环境重建流程、依赖策略和后续增强项。
 
+当前仿真侧已有两套模型配置：
+
+- `training/configs/ppo_simple_quadruped.yaml`：最小四足稳定 gait 基线。
+- `training/configs/ppo_bittle_like_v0.yaml`：面向 Petoi Bittle 形态迁移的 v0 近似模型，用于后续站立稳定与步态迁移实验。
+
 后续训练产生的 checkpoint、TensorBoard 日志、导出模型和演示视频不宜只保存在租用服务器本地，应定期同步到远程仓库、网盘、对象存储或 Git LFS。
 
 ## 环境与协作说明

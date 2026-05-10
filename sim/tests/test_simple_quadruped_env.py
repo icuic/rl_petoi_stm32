@@ -86,3 +86,30 @@ def test_control_interface_v0_test_vector():
     action = np.asarray(vector["normalized_action"], dtype=np.float32)
     expected = np.asarray(vector["expected_joint_target_rad"], dtype=np.float32)
     np.testing.assert_allclose(normalized_action_to_joint_targets(action), expected)
+
+
+def test_supported_robot_models_load_and_step():
+    model_paths = [
+        "sim/robots/simple_quadruped.xml",
+        "sim/robots/bittle_like_v0.xml",
+    ]
+
+    for model_path in model_paths:
+        env = SimpleQuadrupedEnv(model_path=model_path)
+        obs, _ = env.reset(seed=7)
+        assert obs.shape == (OBSERVATION_DIM,)
+
+        action = np.zeros(ACTION_DIM, dtype=np.float32)
+        obs, reward, terminated, truncated, info = env.step(action)
+        assert obs.shape == (OBSERVATION_DIM,)
+        assert np.isfinite(obs).all()
+        assert np.isfinite(reward)
+        assert not truncated
+        assert info["termination_reason"] in {
+            "healthy",
+            "torso_too_low",
+            "torso_too_high",
+            "roll_too_large",
+            "pitch_too_large",
+        }
+        env.close()
