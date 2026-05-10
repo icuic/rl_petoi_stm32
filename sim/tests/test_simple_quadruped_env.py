@@ -171,7 +171,7 @@ def test_residual_trot_control_mode_steps_with_reference_targets():
     assert np.isfinite(reward)
     assert not truncated
     assert info["control_mode"] == "residual_trot"
-    assert np.isclose(info["phase"], 1.0 / 120.0)
+    assert np.isclose(info["phase"], env.frame_skip / 120.0)
 
     env.close()
 

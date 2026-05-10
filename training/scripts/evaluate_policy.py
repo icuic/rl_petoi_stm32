@@ -53,6 +53,11 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Use deterministic policy actions.",
     )
+    parser.add_argument(
+        "--zero-action",
+        action="store_true",
+        help="Evaluate the environment with zero actions instead of loading a PPO model.",
+    )
     return parser.parse_args()
 
 
@@ -75,7 +80,13 @@ def make_env(env_config: dict[str, Any]) -> SimpleQuadrupedEnv:
     )
 
 
-def evaluate_episode(model: PPO, env: SimpleQuadrupedEnv, deterministic: bool, seed: int) -> dict[str, Any]:
+def evaluate_episode(
+    model: PPO | None,
+    env: SimpleQuadrupedEnv,
+    deterministic: bool,
+    seed: int,
+    zero_action: bool,
+) -> dict[str, Any]:
     obs, _ = env.reset(seed=seed)
     start_x = float(env.data.qpos[0])
     total_reward = 0.0
@@ -85,7 +96,12 @@ def evaluate_episode(model: PPO, env: SimpleQuadrupedEnv, deterministic: bool, s
     last_info: dict[str, Any] = {}
 
     while not (terminated or truncated):
-        action, _ = model.predict(obs, deterministic=deterministic)
+        if zero_action:
+            action = np.zeros(env.action_space.shape, dtype=env.action_space.dtype)
+        else:
+            if model is None:
+                raise ValueError("model is required unless zero_action is true")
+            action, _ = model.predict(obs, deterministic=deterministic)
         obs, reward, terminated, truncated, last_info = env.step(action)
         total_reward += float(reward)
         steps += 1
@@ -147,14 +163,22 @@ def main() -> None:
     if deterministic is None:
         deterministic = bool(eval_config.get("deterministic", True))
 
-    if not model_path.exists():
+    if args.zero_action:
+        model_path = None
+    elif not model_path.exists():
         raise FileNotFoundError(f"Model not found: {model_path}")
 
     env = make_env(env_config)
-    model = PPO.load(str(model_path), env=None, device=config.get("device", "auto"))
+    model = None if args.zero_action else PPO.load(str(model_path), env=None, device=config.get("device", "auto"))
 
     episodes = [
-        evaluate_episode(model=model, env=env, deterministic=deterministic, seed=seed + index)
+        evaluate_episode(
+            model=model,
+            env=env,
+            deterministic=deterministic,
+            seed=seed + index,
+            zero_action=args.zero_action,
+        )
         for index in range(episodes_count)
     ]
     env.close()
@@ -162,7 +186,8 @@ def main() -> None:
     report = {
         "created_at": datetime.now(timezone.utc).isoformat(),
         "config": str(args.config),
-        "model": str(model_path),
+        "model": None if model_path is None else str(model_path),
+        "policy_mode": "zero_action" if args.zero_action else "ppo",
         "deterministic": deterministic,
         "episodes": episodes,
         "summary": summarize(episodes),

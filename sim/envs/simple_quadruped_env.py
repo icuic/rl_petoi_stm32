@@ -158,7 +158,8 @@ class SimpleQuadrupedEnv(gym.Env):
         x_progress = x_position - previous_x_position
 
         self.step_count += 1
-        self.phase = (self.phase + 1.0 / self.gait_period_steps) % 1.0
+        phase_delta = self.frame_skip / self.gait_period_steps if self.control_mode == "residual_trot" else 1.0 / self.gait_period_steps
+        self.phase = (self.phase + phase_delta) % 1.0
 
         health = self._get_health()
         termination_reason = health["termination_reason"]
