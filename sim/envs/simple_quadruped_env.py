@@ -12,9 +12,9 @@ from gymnasium import spaces
 from sim.envs.simple_quadruped_interface import (
     ACTION_DIM,
     ACTION_SCALE_RAD,
+    JOINT_NAMES,
     NEUTRAL_POSE_RAD,
     OBSERVATION_DIM,
-    normalized_action_to_joint_targets,
 )
 
 
@@ -30,6 +30,7 @@ class SimpleQuadrupedEnv(gym.Env):
         episode_steps: int = 1000,
         reward_config: dict[str, float] | None = None,
         reset_config: dict[str, float] | None = None,
+        control_config: dict | None = None,
         render_mode: str | None = None,
     ) -> None:
         super().__init__()
@@ -52,6 +53,10 @@ class SimpleQuadrupedEnv(gym.Env):
             "torso_height": 0.22,
             "joint_noise": 0.02,
             "velocity_noise": 0.01,
+            "min_torso_height": 0.08,
+            "max_torso_height": 0.45,
+            "max_roll": 1.2,
+            "max_pitch": 1.2,
         }
         if reset_config:
             self.reset_config.update({key: float(value) for key, value in reset_config.items()})
@@ -76,10 +81,28 @@ class SimpleQuadrupedEnv(gym.Env):
         if reward_config:
             self.reward_config.update({key: float(value) for key, value in reward_config.items()})
 
-        self.joint_qpos_addr = np.arange(7, 15)
-        self.joint_qvel_addr = np.arange(6, 14)
-        self.neutral_pose = NEUTRAL_POSE_RAD.copy()
-        self.action_scale = ACTION_SCALE_RAD.copy()
+        control_config = control_config or {}
+        self.joint_names = tuple(control_config.get("joint_names", JOINT_NAMES))
+        self.actuator_names = tuple(control_config.get("actuator_names", ()))
+        self.neutral_pose = np.asarray(control_config.get("neutral_pose", NEUTRAL_POSE_RAD), dtype=np.float32)
+        self.action_scale = np.asarray(control_config.get("action_scale", ACTION_SCALE_RAD), dtype=np.float32)
+        if len(self.joint_names) != ACTION_DIM:
+            raise ValueError(f"Expected {ACTION_DIM} controlled joints, got {len(self.joint_names)}")
+        if self.neutral_pose.shape != (ACTION_DIM,):
+            raise ValueError(f"neutral_pose must have shape ({ACTION_DIM},), got {self.neutral_pose.shape}")
+        if self.action_scale.shape != (ACTION_DIM,):
+            raise ValueError(f"action_scale must have shape ({ACTION_DIM},), got {self.action_scale.shape}")
+
+        if control_config.get("joint_names"):
+            self.joint_qpos_addr, self.joint_qvel_addr = self._resolve_joint_addresses(self.joint_names)
+        else:
+            self.joint_qpos_addr = np.arange(7, 15)
+            self.joint_qvel_addr = np.arange(6, 14)
+
+        if self.actuator_names:
+            self.actuator_ctrl_addr = self._resolve_actuator_addresses(self.actuator_names)
+        else:
+            self.actuator_ctrl_addr = np.arange(ACTION_DIM)
 
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(ACTION_DIM,), dtype=np.float32)
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(OBSERVATION_DIM,), dtype=np.float32)
@@ -98,7 +121,7 @@ class SimpleQuadrupedEnv(gym.Env):
         self.data.qpos[self.joint_qpos_addr] = self.neutral_pose
         self.data.qpos[self.joint_qpos_addr] += self.np_random.uniform(-joint_noise, joint_noise, size=8)
         self.data.qvel[:] = self.np_random.uniform(-velocity_noise, velocity_noise, size=self.model.nv)
-        self.data.ctrl[:] = self.neutral_pose
+        self.data.ctrl[self.actuator_ctrl_addr] = self.neutral_pose
         mujoco.mj_forward(self.model, self.data)
 
         return self._get_obs(), {"phase": self.phase}
@@ -107,8 +130,8 @@ class SimpleQuadrupedEnv(gym.Env):
         action = np.asarray(action, dtype=np.float32)
         action = np.clip(action, self.action_space.low, self.action_space.high)
 
-        target = normalized_action_to_joint_targets(action)
-        self.data.ctrl[:] = target
+        target = self._normalized_action_to_joint_targets(action)
+        self.data.ctrl[self.actuator_ctrl_addr] = target
         mujoco.mj_step(self.model, self.data, nstep=self.frame_skip)
 
         self.step_count += 1
@@ -162,6 +185,10 @@ class SimpleQuadrupedEnv(gym.Env):
         )
         return obs.astype(np.float32)
 
+    def _normalized_action_to_joint_targets(self, action: np.ndarray) -> np.ndarray:
+        clipped_action = np.clip(np.asarray(action, dtype=np.float32), -1.0, 1.0)
+        return self.neutral_pose + clipped_action * self.action_scale
+
     def _get_reward(self, action: np.ndarray, health: dict[str, float | str], terminated: bool) -> tuple[float, dict[str, float]]:
         weights = self.reward_config
         roll = float(health["roll"])
@@ -209,13 +236,13 @@ class SimpleQuadrupedEnv(gym.Env):
         quat = self.data.qpos[3:7]
         roll, pitch = _quat_to_roll_pitch(quat)
 
-        if height < 0.08:
+        if height < self.reset_config["min_torso_height"]:
             termination_reason = "torso_too_low"
-        elif height > 0.45:
+        elif height > self.reset_config["max_torso_height"]:
             termination_reason = "torso_too_high"
-        elif abs(roll) > 1.2:
+        elif abs(roll) > self.reset_config["max_roll"]:
             termination_reason = "roll_too_large"
-        elif abs(pitch) > 1.2:
+        elif abs(pitch) > self.reset_config["max_pitch"]:
             termination_reason = "pitch_too_large"
         else:
             termination_reason = "healthy"
@@ -226,6 +253,28 @@ class SimpleQuadrupedEnv(gym.Env):
             "pitch": pitch,
             "termination_reason": termination_reason,
         }
+
+    def _resolve_joint_addresses(self, joint_names: tuple[str, ...]) -> tuple[np.ndarray, np.ndarray]:
+        qpos_addr = []
+        qvel_addr = []
+        for joint_name in joint_names:
+            joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
+            if joint_id < 0:
+                raise ValueError(f"Joint not found in model {self.model_path}: {joint_name}")
+            qpos_addr.append(int(self.model.jnt_qposadr[joint_id]))
+            qvel_addr.append(int(self.model.jnt_dofadr[joint_id]))
+        return np.asarray(qpos_addr, dtype=np.int32), np.asarray(qvel_addr, dtype=np.int32)
+
+    def _resolve_actuator_addresses(self, actuator_names: tuple[str, ...]) -> np.ndarray:
+        if len(actuator_names) != ACTION_DIM:
+            raise ValueError(f"Expected {ACTION_DIM} actuators, got {len(actuator_names)}")
+        actuator_ids = []
+        for actuator_name in actuator_names:
+            actuator_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, actuator_name)
+            if actuator_id < 0:
+                raise ValueError(f"Actuator not found in model {self.model_path}: {actuator_name}")
+            actuator_ids.append(int(actuator_id))
+        return np.asarray(actuator_ids, dtype=np.int32)
 
 
 def _quat_to_roll_pitch(quat: np.ndarray) -> tuple[float, float]:

@@ -192,7 +192,7 @@ def main() -> int:
     parser.add_argument("--base-mass", type=float, default=0.18)
     parser.add_argument("--kp", type=float, default=2.5)
     parser.add_argument("--force", type=float, default=1.2)
-    parser.add_argument("--ctrl", type=float, default=1.2)
+    parser.add_argument("--ctrl", type=float, default=2.2)
     args = parser.parse_args()
 
     try:

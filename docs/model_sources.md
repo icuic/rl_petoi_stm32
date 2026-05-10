@@ -91,3 +91,11 @@ MuJoCo to import the generated URDF, wrapping the imported robot in a floating
 joint remains passive for the first training target. The model is still a first
 pass: base-body inertia and servo gains are engineering estimates that should be
 calibrated before long training runs.
+
+The first stand-pose sweep is recorded in
+`experiments/petoi_bittle_v0_stand_calibration.md`. The current smoke-test pose
+is:
+
+```text
+0.2,1.4,0.2,1.4,0.2,1.4,0.2,1.4
+```
