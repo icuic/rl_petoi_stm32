@@ -70,3 +70,13 @@ bash scripts/evaluate.sh
 ```
 
 评估报告默认写入 `experiments/reports/simple_quadruped_eval.json`，包含 episode reward、长度、前进距离、摔倒率、最终姿态和终止原因统计等指标。
+
+## Export
+
+导出确定性 actor 到 ONNX，并使用 ONNXRuntime 做一致性验证：
+
+```bash
+bash scripts/export_policy.sh training/configs/ppo_simple_quadruped.yaml
+```
+
+默认导出路径为 `models/onnx/simple_quadruped_actor.onnx`，验证报告写入 `models/reports/simple_quadruped_actor_onnx.json`。这些生成产物默认不纳入 Git。
