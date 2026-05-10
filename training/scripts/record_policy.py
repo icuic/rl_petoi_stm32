@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import imageio.v2 as imageio
+import numpy as np
 import yaml
 from stable_baselines3 import PPO
 
@@ -51,6 +52,11 @@ def parse_args() -> argparse.Namespace:
         default=True,
         help="Use deterministic policy actions.",
     )
+    parser.add_argument(
+        "--zero-action",
+        action="store_true",
+        help="Record the environment with zero actions instead of loading a PPO model.",
+    )
     return parser.parse_args()
 
 
@@ -86,11 +92,13 @@ def main() -> None:
     deterministic = args.deterministic
 
     model_path = args.model or Path(paths_config.get("final_model", "training/checkpoints/ppo_simple_quadruped/final_model.zip"))
-    if not model_path.exists():
+    if args.zero_action:
+        model_path = None
+    elif not model_path.exists():
         raise FileNotFoundError(f"Model not found: {model_path}")
 
     env = make_env(env_config)
-    model = PPO.load(str(model_path), env=None, device=config.get("device", "auto"))
+    model = None if args.zero_action else PPO.load(str(model_path), env=None, device=config.get("device", "auto"))
     obs, _ = env.reset(seed=seed)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -105,7 +113,12 @@ def main() -> None:
             if frame is not None:
                 writer.append_data(frame)
 
-            action, _ = model.predict(obs, deterministic=deterministic)
+            if args.zero_action:
+                action = np.zeros(env.action_space.shape, dtype=env.action_space.dtype)
+            else:
+                if model is None:
+                    raise ValueError("model is required unless zero_action is true")
+                action, _ = model.predict(obs, deterministic=deterministic)
             obs, reward, terminated, truncated, info = env.step(action)
             total_reward += float(reward)
             steps += 1
@@ -117,6 +130,7 @@ def main() -> None:
         env.close()
 
     print(f"Saved rollout video to {args.output}")
+    print(f"policy_mode={'zero_action' if args.zero_action else 'ppo'}")
     print(f"steps={steps} reward={total_reward:.3f} termination_reason={termination_reason}")
     if bool(eval_config.get("deterministic", True)) != deterministic:
         print(f"note: config evaluation.deterministic={eval_config.get('deterministic')} but recording used {deterministic}")

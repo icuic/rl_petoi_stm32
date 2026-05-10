@@ -69,6 +69,34 @@ Summary:
 | Zero-action residual trot | fixed | 0.0 | `0.4288 m` |
 | Residual trot v3 PPO | fixed | 0.0 | `0.5029 m` |
 
+## Videos
+
+Two 500-step diagnostic videos were recorded with the same renderer and config:
+
+```bash
+bash scripts/record_eval.sh training/configs/ppo_petoi_bittle_v0_trot_residual_v3_phase_fixed.yaml \
+  --zero-action \
+  --max-steps 500 \
+  --fps 50 \
+  --output assets/videos/petoi_bittle_v0_zero_action_residual_trot.mp4
+
+bash scripts/record_eval.sh training/configs/ppo_petoi_bittle_v0_trot_residual_v3_phase_fixed.yaml \
+  --max-steps 500 \
+  --fps 50 \
+  --output assets/videos/petoi_bittle_v0_trot_residual_v3_phase_fixed.mp4
+```
+
+Results:
+
+- `assets/videos/petoi_bittle_v0_zero_action_residual_trot.mp4`
+  - `steps=500`
+  - `reward=117.638`
+  - `termination_reason=healthy`
+- `assets/videos/petoi_bittle_v0_trot_residual_v3_phase_fixed.mp4`
+  - `steps=500`
+  - `reward=132.452`
+  - `termination_reason=healthy`
+
 ## Conclusion
 
 The corrected phase timing turns the residual trot setup into a valid forward
@@ -77,5 +105,5 @@ baseline, and v3 PPO improves mean forward distance while preserving full
 episode stability.
 
 The variance is still high, so the next useful step is not deployment yet. The
-next step should record videos for zero-action and v3, then run a longer v3
-training pass or a lower-variance seed sweep to confirm the improvement.
+next step should run a longer v3 training pass or a lower-variance seed sweep to
+confirm the improvement.
