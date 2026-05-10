@@ -28,6 +28,10 @@ models/reports/*.json
 models/reports/*.html
 assets/videos/*.mp4
 assets/videos/*.mov
+build/
+
+# Fetched third-party robot descriptions and meshes
+third_party/petoi/ros_opencat/
 
 # IDE and OS files
 .idea/
