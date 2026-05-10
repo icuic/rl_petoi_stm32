@@ -9,6 +9,7 @@ import mujoco
 import numpy as np
 from gymnasium import spaces
 
+from sim.envs.gait_reference import trot_reference
 from sim.envs.simple_quadruped_interface import (
     ACTION_DIM,
     ACTION_SCALE_RAD,
@@ -82,6 +83,19 @@ class SimpleQuadrupedEnv(gym.Env):
             self.reward_config.update({key: float(value) for key, value in reward_config.items()})
 
         control_config = control_config or {}
+        self.control_mode = str(control_config.get("mode", "absolute"))
+        if self.control_mode not in {"absolute", "residual_trot"}:
+            raise ValueError(f"Unsupported control mode: {self.control_mode}")
+
+        gait_config = control_config.get("gait", {})
+        default_gait_period_steps = 50 if self.control_mode == "absolute" else 120
+        self.gait_period_steps = int(gait_config.get("period_steps", default_gait_period_steps))
+        if self.gait_period_steps <= 0:
+            raise ValueError("gait.period_steps must be positive")
+        self.gait_shoulder_amplitude = float(gait_config.get("shoulder_amplitude", 0.08))
+        self.gait_knee_amplitude = float(gait_config.get("knee_amplitude", 0.12))
+        self.gait_duty_bias = float(gait_config.get("duty_bias", 0.0))
+
         self.joint_names = tuple(control_config.get("joint_names", JOINT_NAMES))
         self.actuator_names = tuple(control_config.get("actuator_names", ()))
         self.neutral_pose = np.asarray(control_config.get("neutral_pose", NEUTRAL_POSE_RAD), dtype=np.float32)
@@ -118,13 +132,14 @@ class SimpleQuadrupedEnv(gym.Env):
         velocity_noise = float(self.reset_config["velocity_noise"])
 
         self.data.qpos[:7] = np.array([0.0, 0.0, self.reset_config["torso_height"], 1.0, 0.0, 0.0, 0.0])
-        self.data.qpos[self.joint_qpos_addr] = self.neutral_pose
+        reset_pose = self._reference_joint_targets(self.phase)
+        self.data.qpos[self.joint_qpos_addr] = reset_pose
         self.data.qpos[self.joint_qpos_addr] += self.np_random.uniform(-joint_noise, joint_noise, size=8)
         self.data.qvel[:] = self.np_random.uniform(-velocity_noise, velocity_noise, size=self.model.nv)
-        self.data.ctrl[self.actuator_ctrl_addr] = self.neutral_pose
+        self.data.ctrl[self.actuator_ctrl_addr] = reset_pose
         mujoco.mj_forward(self.model, self.data)
 
-        return self._get_obs(), {"phase": self.phase}
+        return self._get_obs(), {"phase": self.phase, "control_mode": self.control_mode}
 
     def step(self, action):
         action = np.asarray(action, dtype=np.float32)
@@ -135,7 +150,7 @@ class SimpleQuadrupedEnv(gym.Env):
         mujoco.mj_step(self.model, self.data, nstep=self.frame_skip)
 
         self.step_count += 1
-        self.phase = (self.phase + 0.02) % 1.0
+        self.phase = (self.phase + 1.0 / self.gait_period_steps) % 1.0
 
         health = self._get_health()
         termination_reason = health["termination_reason"]
@@ -152,6 +167,7 @@ class SimpleQuadrupedEnv(gym.Env):
             "torso_height": health["height"],
             "roll": health["roll"],
             "pitch": health["pitch"],
+            "control_mode": self.control_mode,
             "termination_reason": termination_reason,
             "reward_terms": reward_terms,
         }
@@ -187,13 +203,26 @@ class SimpleQuadrupedEnv(gym.Env):
 
     def _normalized_action_to_joint_targets(self, action: np.ndarray) -> np.ndarray:
         clipped_action = np.clip(np.asarray(action, dtype=np.float32), -1.0, 1.0)
-        return self.neutral_pose + clipped_action * self.action_scale
+        reference = self._reference_joint_targets(self.phase)
+        return reference + clipped_action * self.action_scale
+
+    def _reference_joint_targets(self, phase: float) -> np.ndarray:
+        if self.control_mode == "residual_trot":
+            return trot_reference(
+                float(phase),
+                stand_pose=self.neutral_pose,
+                shoulder_amplitude=self.gait_shoulder_amplitude,
+                knee_amplitude=self.gait_knee_amplitude,
+                duty_bias=self.gait_duty_bias,
+            )
+        return self.neutral_pose
 
     def _get_reward(self, action: np.ndarray, health: dict[str, float | str], terminated: bool) -> tuple[float, dict[str, float]]:
         weights = self.reward_config
         roll = float(health["roll"])
         pitch = float(health["pitch"])
         action_delta = action - self.previous_action
+        reference = self._reference_joint_targets(self.phase)
 
         terms = {
             "survival": weights["survival"],
@@ -206,7 +235,7 @@ class SimpleQuadrupedEnv(gym.Env):
             "vertical_velocity_penalty": weights["vertical_velocity"] * float(self.data.qvel[2] * self.data.qvel[2]),
             "angular_velocity_penalty": weights["angular_velocity"] * float(np.square(self.data.qvel[3:6]).sum()),
             "joint_velocity_penalty": weights["joint_velocity"] * float(np.square(self.data.qvel[self.joint_qvel_addr]).sum()),
-            "joint_position_penalty": weights["joint_position"] * float(np.square(self.data.qpos[self.joint_qpos_addr] - self.neutral_pose).sum()),
+            "joint_position_penalty": weights["joint_position"] * float(np.square(self.data.qpos[self.joint_qpos_addr] - reference).sum()),
             "action_penalty": weights["action"] * float(np.square(action).sum()),
             "action_delta_penalty": weights["action_delta"] * float(np.square(action_delta).sum()),
             "drift_penalty": weights["drift"] * float(np.square(self.data.qpos[0:2]).sum()),
