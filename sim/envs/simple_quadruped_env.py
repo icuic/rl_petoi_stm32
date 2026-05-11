@@ -13,9 +13,10 @@ from sim.envs.gait_reference import trot_reference
 from sim.envs.simple_quadruped_interface import (
     ACTION_DIM,
     ACTION_SCALE_RAD,
+    DEPLOYABLE_OBSERVATION_DIM,
+    FULL_OBSERVATION_DIM,
     JOINT_NAMES,
     NEUTRAL_POSE_RAD,
-    OBSERVATION_DIM,
 )
 
 
@@ -32,6 +33,7 @@ class SimpleQuadrupedEnv(gym.Env):
         reward_config: dict[str, float] | None = None,
         reset_config: dict[str, float] | None = None,
         control_config: dict | None = None,
+        observation_config: dict | None = None,
         render_mode: str | None = None,
     ) -> None:
         super().__init__()
@@ -85,6 +87,12 @@ class SimpleQuadrupedEnv(gym.Env):
         if reward_config:
             self.reward_config.update({key: float(value) for key, value in reward_config.items()})
 
+        observation_config = observation_config or {}
+        self.observation_mode = str(observation_config.get("mode", "full_state"))
+        if self.observation_mode not in {"full_state", "deployable_v0"}:
+            raise ValueError(f"Unsupported observation mode: {self.observation_mode}")
+        observation_dim = FULL_OBSERVATION_DIM if self.observation_mode == "full_state" else DEPLOYABLE_OBSERVATION_DIM
+
         control_config = control_config or {}
         self.control_mode = str(control_config.get("mode", "absolute"))
         if self.control_mode not in {"absolute", "residual_trot"}:
@@ -122,7 +130,7 @@ class SimpleQuadrupedEnv(gym.Env):
             self.actuator_ctrl_addr = np.arange(ACTION_DIM)
 
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(ACTION_DIM,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(OBSERVATION_DIM,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(observation_dim,), dtype=np.float32)
 
     def reset(self, *, seed: int | None = None, options: dict | None = None):
         super().reset(seed=seed)
@@ -144,7 +152,7 @@ class SimpleQuadrupedEnv(gym.Env):
         mujoco.mj_forward(self.model, self.data)
         self.previous_x_position = float(self.data.qpos[0])
 
-        return self._get_obs(), {"phase": self.phase, "control_mode": self.control_mode}
+        return self._get_obs(), {"phase": self.phase, "control_mode": self.control_mode, "observation_mode": self.observation_mode}
 
     def step(self, action):
         action = np.asarray(action, dtype=np.float32)
@@ -167,13 +175,15 @@ class SimpleQuadrupedEnv(gym.Env):
         truncated = self.step_count >= self.episode_steps
         if truncated and not terminated:
             termination_reason = "timeout"
-        obs = self._get_obs()
         reward, reward_terms = self._get_reward(
             action=action,
             health=health,
             terminated=terminated,
             x_progress=x_progress,
         )
+        self.previous_action = action.copy()
+        self.previous_x_position = x_position
+        obs = self._get_obs()
         info = {
             "x_position": x_position,
             "x_velocity": float(self.data.qvel[0]),
@@ -183,11 +193,10 @@ class SimpleQuadrupedEnv(gym.Env):
             "roll": health["roll"],
             "pitch": health["pitch"],
             "control_mode": self.control_mode,
+            "observation_mode": self.observation_mode,
             "termination_reason": termination_reason,
             "reward_terms": reward_terms,
         }
-        self.previous_action = action.copy()
-        self.previous_x_position = x_position
         return obs, reward, terminated, truncated, info
 
     def render(self):
@@ -205,6 +214,19 @@ class SimpleQuadrupedEnv(gym.Env):
 
     def _get_obs(self) -> np.ndarray:
         phase_angle = 2.0 * np.pi * self.phase
+        if self.observation_mode == "deployable_v0":
+            roll, pitch = _quat_to_roll_pitch(self.data.qpos[3:7])
+            obs = np.concatenate(
+                [
+                    np.array([roll, pitch], dtype=np.float32),
+                    self.data.qvel[3:6],
+                    self.data.qpos[self.joint_qpos_addr],
+                    self.previous_action,
+                    np.array([np.sin(phase_angle), np.cos(phase_angle)]),
+                ]
+            )
+            return obs.astype(np.float32)
+
         obs = np.concatenate(
             [
                 self.data.qpos[2:3],

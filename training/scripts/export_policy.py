@@ -86,6 +86,7 @@ def make_env(env_config: dict[str, Any]) -> SimpleQuadrupedEnv:
         reward_config=env_config.get("reward", {}),
         reset_config=env_config.get("reset", {}),
         control_config=env_config.get("control", {}),
+        observation_config=env_config.get("observation", {}),
     )
 
 

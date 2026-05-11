@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import numpy as np
 
-OBSERVATION_DIM = 29
+FULL_OBSERVATION_DIM = 29
+DEPLOYABLE_OBSERVATION_DIM = 23
+OBSERVATION_DIM = FULL_OBSERVATION_DIM
 ACTION_DIM = 8
 
 JOINT_NAMES = (
@@ -25,6 +27,14 @@ OBSERVATION_LAYOUT = (
     ("joint_position_rad", 11, 19),
     ("joint_velocity_rad_s", 19, 27),
     ("phase_sin_cos", 27, 29),
+)
+
+DEPLOYABLE_OBSERVATION_LAYOUT = (
+    ("roll_pitch_rad", 0, 2),
+    ("base_angular_velocity_rad_s", 2, 5),
+    ("joint_position_rad", 5, 13),
+    ("previous_action_normalized", 13, 21),
+    ("phase_sin_cos", 21, 23),
 )
 
 ACTION_LAYOUT = tuple((name, index) for index, name in enumerate(JOINT_NAMES))

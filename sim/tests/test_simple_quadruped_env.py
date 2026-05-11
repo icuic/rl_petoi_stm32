@@ -7,6 +7,8 @@ from sim.envs import (
     ACTION_DIM,
     ACTION_LAYOUT,
     ACTION_SCALE_RAD,
+    DEPLOYABLE_OBSERVATION_DIM,
+    DEPLOYABLE_OBSERVATION_LAYOUT,
     JOINT_NAMES,
     NEUTRAL_POSE_RAD,
     OBSERVATION_DIM,
@@ -60,6 +62,8 @@ def test_control_interface_layout_matches_environment():
     assert len(JOINT_NAMES) == ACTION_DIM
     assert len(ACTION_LAYOUT) == ACTION_DIM
     assert OBSERVATION_LAYOUT[-1] == ("phase_sin_cos", 27, 29)
+    assert DEPLOYABLE_OBSERVATION_DIM == 23
+    assert DEPLOYABLE_OBSERVATION_LAYOUT[-1] == ("phase_sin_cos", 21, 23)
     assert NEUTRAL_POSE_RAD.shape == (ACTION_DIM,)
     assert ACTION_SCALE_RAD.shape == (ACTION_DIM,)
 
@@ -172,6 +176,41 @@ def test_residual_trot_control_mode_steps_with_reference_targets():
     assert not truncated
     assert info["control_mode"] == "residual_trot"
     assert np.isclose(info["phase"], env.frame_skip / 120.0)
+
+    env.close()
+
+
+def test_deployable_observation_mode_uses_robot_available_signals():
+    env = SimpleQuadrupedEnv(
+        model_path="sim/robots/bittle_like_v0.xml",
+        observation_config={"mode": "deployable_v0"},
+        control_config={
+            "mode": "residual_trot",
+            "neutral_pose": [0.2, 1.0, 0.2, 1.0, 0.2, 1.0, 0.2, 1.0],
+            "action_scale": [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05],
+            "gait": {
+                "period_steps": 120,
+                "shoulder_amplitude": 0.08,
+                "knee_amplitude": 0.12,
+            },
+        },
+        reset_config={"joint_noise": 0.0, "velocity_noise": 0.0},
+    )
+
+    obs, info = env.reset(seed=7)
+    assert obs.shape == (DEPLOYABLE_OBSERVATION_DIM,)
+    assert env.observation_space.shape == (DEPLOYABLE_OBSERVATION_DIM,)
+    assert info["observation_mode"] == "deployable_v0"
+    np.testing.assert_allclose(obs[13:21], np.zeros(ACTION_DIM), atol=1e-6)
+
+    action = np.ones(ACTION_DIM, dtype=np.float32) * 0.25
+    obs, reward, terminated, truncated, info = env.step(action)
+    assert obs.shape == (DEPLOYABLE_OBSERVATION_DIM,)
+    assert np.isfinite(obs).all()
+    assert np.isfinite(reward)
+    assert not truncated
+    assert info["observation_mode"] == "deployable_v0"
+    np.testing.assert_allclose(obs[13:21], action, atol=1e-6)
 
     env.close()
 

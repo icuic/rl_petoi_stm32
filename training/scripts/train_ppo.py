@@ -60,6 +60,7 @@ def make_env_factory(env_config: dict[str, Any]):
             reward_config=env_config.get("reward", {}),
             reset_config=env_config.get("reset", {}),
             control_config=env_config.get("control", {}),
+            observation_config=env_config.get("observation", {}),
         )
 
     return _make_env
