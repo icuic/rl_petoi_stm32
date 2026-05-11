@@ -117,14 +117,23 @@ Parity:
 - Final checkpoints are not necessarily best. The 90k checkpoint was selected
   through deterministic checkpoint evaluation, not by assuming the final model
   was optimal.
+- Checkpoint selection is now scriptable:
+
+```bash
+bash scripts/select_checkpoint.sh \
+  'experiments/reports/petoi_bittle_v0_trot_residual_v3_phase_fixed_100k_continue_*eval*.json' \
+  --min-episodes 20 \
+  --output-json experiments/reports/petoi_bittle_v0_trot_residual_v3_phase_fixed_100k_checkpoint_ranking_20ep.json
+```
+
+  With the 20-episode validation threshold, the helper selects the 90k
+  checkpoint as rank 1.
 - The ONNX actor exports the deterministic normalized residual action. Runtime
   deployment still needs the same observation construction and residual target
   reconstruction used by the Gym environment.
 
 ## Next Steps
 
-- Add a small checkpoint-selection helper that scans evaluation JSON reports and
-  ranks checkpoints by `fall_rate`, `distance_x_mean`, and `distance_x_std`.
 - Run a lower-learning-rate fine-tune from the 90k best checkpoint.
 - Start defining the embedded inference interface: observation vector layout,
   action scaling, residual reference generation, and timing budget for STM32.
