@@ -132,8 +132,43 @@ bash scripts/select_checkpoint.sh \
   deployment still needs the same observation construction and residual target
   reconstruction used by the Gym environment.
 
+## Deployable v0 Policy
+
+Best deployable-observation checkpoint:
+
+```text
+training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue_10000_steps.zip
+```
+
+This policy uses the 23D `deployable_v0` observation layout:
+
+```text
+roll/pitch, base angular velocity, 8 joint positions, previous action, phase sin/cos
+```
+
+20-episode deterministic evaluation:
+
+- `distance_x_mean`: `1.2703 m`
+- `distance_x_std`: `0.0170 m`
+- `fall_rate`: `0.0`
+- `termination_reason_counts`: `timeout: 20`
+
+Generated artifacts:
+
+```text
+assets/videos/petoi_bittle_v0_deployable_v0_best_10000.mp4
+models/onnx/petoi_bittle_v0_deployable_v0_best_actor.onnx
+models/reports/petoi_bittle_v0_deployable_v0_best_actor_onnx.json
+```
+
+ONNX parity:
+
+- `observation_dim`: `23`
+- `action_dim`: `8`
+- `torch_vs_onnx_max_abs_diff`: `1.1920928955078125e-07`
+- `sb3_vs_onnx_max_abs_diff`: `1.1920928955078125e-07`
+
 ## Next Steps
 
-- Run a lower-learning-rate fine-tune from the 90k best checkpoint.
-- Start defining the embedded inference interface: observation vector layout,
-  action scaling, residual reference generation, and timing budget for STM32.
+- Define the embedded inference interface: deployable observation construction,
+  action scaling, residual reference generation, and STM32 timing budget.
