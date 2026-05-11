@@ -77,6 +77,23 @@ Result:
 - `reward=283.605`
 - `termination_reason=healthy`
 
+Best-checkpoint demo command:
+
+```bash
+bash scripts/record_eval.sh training/configs/ppo_petoi_bittle_v0_trot_residual_v3_phase_fixed_100k_continue.yaml \
+  --model training/checkpoints/ppo_petoi_bittle_v0_trot_residual_v3_phase_fixed_100k_continue/ppo_petoi_bittle_v0_trot_residual_v3_phase_fixed_100k_continue_90000_steps.zip \
+  --max-steps 500 \
+  --fps 50 \
+  --output assets/videos/petoi_bittle_v0_trot_residual_v3_phase_fixed_100k_continue_best_90000.mp4
+```
+
+Result:
+
+- `assets/videos/petoi_bittle_v0_trot_residual_v3_phase_fixed_100k_continue_best_90000.mp4`
+- `steps=500`
+- `reward=287.064`
+- `termination_reason=healthy`
+
 ## Comparison
 
 | Policy | Training | Fall rate | Mean distance x |
@@ -85,6 +102,34 @@ Result:
 | Residual trot v3 phase fixed | 30208 | 0.0 | `0.5029 m` |
 | Residual trot v3 100k continue | 100352 more | 0.0 | `1.2350 m` |
 
+## Checkpoint Sweep
+
+Several late checkpoints were evaluated with the same deterministic protocol to
+check whether the final model was the best candidate:
+
+| Checkpoint | Episodes | Fall rate | Mean distance x | Distance std | Reward mean |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 60000 | 10 | 0.0 | `0.9619 m` | `0.0178 m` | `329.8345` |
+| 70000 | 10 | 0.0 | `1.0569 m` | `0.1700 m` | `321.6217` |
+| 80000 | 10 | 0.0 | `1.1917 m` | `0.0155 m` | `393.1036` |
+| 90000 | 10 | 0.0 | `1.3029 m` | `0.0163 m` | `440.0439` |
+| 95000 | 10 | 0.0 | `1.3202 m` | `0.0195 m` | `419.3481` |
+| final | 10 | 0.0 | `1.2350 m` | `0.2418 m` | `318.1431` |
+
+The 95000-step checkpoint had the best 10-episode mean distance, but a larger
+20-episode validation showed that it was less robust:
+
+| Checkpoint | Episodes | Fall rate | Mean distance x | Distance std | Reward mean |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 90000 | 20 | 0.0 | `1.3085 m` | `0.0146 m` | `437.2846` |
+| 95000 | 20 | 0.0 | `1.2491 m` | `0.3212 m` | `370.8003` |
+
+Current best checkpoint:
+
+```text
+training/checkpoints/ppo_petoi_bittle_v0_trot_residual_v3_phase_fixed_100k_continue/ppo_petoi_bittle_v0_trot_residual_v3_phase_fixed_100k_continue_90000_steps.zip
+```
+
 ## Conclusion
 
 Longer training substantially improved deterministic forward progress while
@@ -92,7 +137,11 @@ preserving full-episode stability. The training curve was not monotonic: PPO
 temporarily degraded the gait during early continuation, then recovered and
 improved it late in the run.
 
-This is the strongest Petoi simulated locomotion baseline so far. The next step
-should be a robustness pass: evaluate several seeds, record one clean demo
-video, and consider a lower learning rate or checkpoint-selection workflow to
-avoid losing good gaits during long continuation runs.
+This is the strongest Petoi simulated locomotion baseline so far. The 90000-step
+checkpoint is the best current candidate because it combines strong forward
+distance with very low evaluation variance. The final model is still good, but
+it is not the best checkpoint.
+
+The next step should record a clean demo video from the 90000-step checkpoint
+and add a simple checkpoint-selection workflow so future long runs do not rely
+only on the final model.
