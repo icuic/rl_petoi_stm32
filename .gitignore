@@ -24,6 +24,7 @@ experiments/runs/
 
 # Generated reports and media
 experiments/reports/*.json
+experiments/reports/**/*.json
 models/reports/*.json
 models/reports/*.html
 assets/videos/*.mp4
