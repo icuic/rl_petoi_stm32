@@ -81,6 +81,28 @@ ParseError DecodeFrame(const uint8_t* frame, size_t frame_len, FrameView* out_fr
   return ParseError::kOk;
 }
 
+ParseError ExpectedFrameLengthFromHeader(const uint8_t* header,
+                                         size_t header_len,
+                                         size_t* out_frame_len) {
+  if (header == nullptr || out_frame_len == nullptr || header_len < kHeaderSize) {
+    return ParseError::kFrameTooShort;
+  }
+  if (header[0] != kMagic0 || header[1] != kMagic1) {
+    return ParseError::kMagicMismatch;
+  }
+  if (header[2] != kVersion) {
+    return ParseError::kUnsupportedVersion;
+  }
+
+  const uint16_t payload_len = ReadLe16(header + 6);
+  if (payload_len > kMaxPayloadSize) {
+    return ParseError::kPayloadTooLarge;
+  }
+
+  *out_frame_len = kHeaderSize + payload_len + kCrcSize;
+  return ParseError::kOk;
+}
+
 ParseError DecodeTargetsPayload(const FrameView& frame, float out_targets[kTargetCount]) {
   if ((frame.message_type != kMsgSetTargetsReq && frame.message_type != kMsgStepReq) || out_targets == nullptr) {
     return ParseError::kUnexpectedMessageType;

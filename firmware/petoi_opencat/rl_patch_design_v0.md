@@ -41,29 +41,40 @@ src/espServo.h
 
 ### Command Dispatch
 
-`src/OpenCat.h` defines:
+An early design considered placing RL support under:
 
 ```text
 T_EXTENSION 'X'
 ```
 
-`src/reaction.h` already contains:
+because `src/reaction.h` already contains:
 
 ```text
 case T_EXTENSION:
 ```
 
+After reviewing `src/moduleManager.h::read_serial()` on 2026-05-13, that is no
+longer the preferred wire-level entrypoint for the binary RL transport.
+
+Current upstream behavior:
+
+- uppercase serial tokens use `~` as the terminator
+- `T_EXTENSION 'X'` is explicitly kept on the text-like parsing path
+- the RL payload and CRC are arbitrary binary bytes, so `0x7E` can appear
+  naturally inside a valid frame
+
 Recommendation:
 
-- keep RL extensions under `T_EXTENSION`
-- reserve a dedicated subcommand namespace such as:
-  - `XRG` for `RL_GET_STATE`
-  - `XRT` for `RL_SET_TARGETS`
-  - `XRS` for `RL_STEP`
+- add one dedicated top-level RL serial token, tentatively `T_RL_FRAME`
+- parse that token in `read_serial()` with a length-driven binary branch:
+  1. read fixed frame header
+  2. read `payload_len`
+  3. read remaining payload plus CRC
+  4. never rely on `~` as an RL frame delimiter
+- dispatch the decoded frame from `reaction()` into the RL adapter layer
 
-The exact subcommand labels can change later. The key design point is that RL
-support should live under the existing extension command family instead of
-consuming unrelated top-level Petoi tokens.
+`T_EXTENSION` remains useful for future human-facing debug toggles if needed,
+but it should not carry the production binary frame.
 
 ## State Collection Plan
 
@@ -196,6 +207,17 @@ Suggested responsibilities:
 
 Keep `reaction.h` limited to command dispatch and high-level orchestration.
 
+Add one parser hook near `src/moduleManager.h::read_serial()` for
+`T_RL_FRAME`. That parser should produce the same logical request object as the
+repo-local `rl_command_adapter_v0` already consumes.
+
+The file `rl_opencat_port_map_v0.md` turns this design into concrete upstream
+patch locations and code-shape guidance for:
+
+- `src/OpenCat.h`
+- `src/moduleManager.h`
+- `src/reaction.h`
+
 ## Command Behavior
 
 ### `RL_GET_STATE`
@@ -264,18 +286,20 @@ tools/rl_serial_protocol_v0.py
 ## Implementation Order
 
 1. Add binary frame parser / serializer.
-2. Add `RL_GET_STATE` with stub telemetry values if hardware is absent.
-3. Connect real IMU and feedback-servo sources.
-4. Add `RL_SET_TARGETS`.
-5. Add `RL_STEP`.
-6. Run host-side probe against firmware over serial.
+2. Add repo-local `RL_GET_STATE` and `RL_SET_TARGETS` command adapters with
+   stub callbacks.
+3. Add upstream-facing `T_RL_FRAME` read path in `read_serial()`.
+4. Dispatch decoded RL frames from `reaction()`.
+5. Connect real IMU and feedback-servo sources.
+6. Connect real target execution path.
+7. Add `RL_STEP`.
+8. Run host-side probe against firmware over serial.
 
 ## Open Questions Before Real Patch
 
-1. Exact top-level extension subcommand bytes under `T_EXTENSION`.
-2. Whether RL binary frames should be carried entirely after `X...` command
-   parsing or use a new dedicated parser branch earlier in the serial pipeline.
+1. Final byte value for `T_RL_FRAME`.
+2. Whether the production RL link should allow only wired serial first, or also
+   BT serial immediately.
 3. The exact OpenCat joint-index table for the eight controlled leg joints.
 4. Whether executing targets should disable or bypass any balancing behavior
    during RL control mode.
-

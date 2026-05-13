@@ -210,12 +210,17 @@ Source review on 2026-05-13 confirmed:
   feedback
 - feedback-servo reads are handled through the existing feedback-servo path
 - gyro / IMU handling is present and grouped under gyro-related command logic
+- `read_serial()` uses `~` as the terminator for existing uppercase binary
+  command payloads, which is unsafe for arbitrary RL frame bytes because
+  payload or CRC can legitimately contain `0x7E`
 
 Therefore the RL extension should reuse:
 
 - existing IMU state
 - existing servo feedback readers
 - existing target-joint execution helpers
+- a dedicated length-driven RL binary read path instead of wrapping the entire
+  frame under text-like `X...` extension parsing
 
 instead of duplicating them.
 
@@ -227,4 +232,3 @@ instead of duplicating them.
 4. Add a host-side Python protocol probe for desktop bring-up.
 5. Once hardware arrives, validate units, latency, and packet cadence before
    connecting the STM32 policy loop.
-

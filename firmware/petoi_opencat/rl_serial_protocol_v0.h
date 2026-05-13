@@ -64,6 +64,10 @@ uint16_t Crc16Ccitt(const uint8_t* data, size_t len, uint16_t initial = 0xFFFFu)
 
 ParseError DecodeFrame(const uint8_t* frame, size_t frame_len, FrameView* out_frame);
 
+ParseError ExpectedFrameLengthFromHeader(const uint8_t* header,
+                                         size_t header_len,
+                                         size_t* out_frame_len);
+
 ParseError DecodeTargetsPayload(const FrameView& frame, float out_targets[kTargetCount]);
 
 ParseError DecodeStatePayload(const FrameView& frame, uint16_t* out_status, TelemetryState* out_state);

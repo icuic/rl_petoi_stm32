@@ -11,6 +11,7 @@ __pycache__/
 .env
 .env.*
 !.env.example
+.tools/
 
 # Training artifacts
 training/checkpoints/
@@ -33,6 +34,7 @@ build/
 
 # Fetched third-party robot descriptions and meshes
 third_party/petoi/ros_opencat/
+third_party/petoi/OpenCatEsp32-Quadruped-Robot/
 
 # IDE and OS files
 .idea/

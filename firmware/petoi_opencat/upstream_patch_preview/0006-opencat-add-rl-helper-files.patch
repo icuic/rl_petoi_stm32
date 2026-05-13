@@ -1,0 +1,313 @@
+diff --git a/src/rlSerialProtocolV0.h b/src/rlSerialProtocolV0.h
+new file mode 100644
+index 0000000..ab32027
+--- /dev/null
++++ b/src/rlSerialProtocolV0.h
+@@ -0,0 +1,74 @@
++#ifndef RL_SERIAL_PROTOCOL_V0_H
++#define RL_SERIAL_PROTOCOL_V0_H
++
++#include <stddef.h>
++#include <stdint.h>
++
++namespace rl_serial_v0 {
++
++static constexpr uint8_t kVersion = 0;
++static constexpr uint8_t kMagic0 = 'R';
++static constexpr uint8_t kMagic1 = 'L';
++static constexpr uint8_t kMsgGetStateReq = 0x01;
++static constexpr uint8_t kMsgSetTargetsReq = 0x02;
++static constexpr uint8_t kMsgGetStateResp = 0x81;
++static constexpr uint8_t kMsgSetTargetsResp = 0x82;
++static constexpr uint16_t kStatusTelemetryValid = 1u << 0;
++static constexpr uint16_t kStatusFeedbackValid = 1u << 1;
++static constexpr uint16_t kStatusCommandAccepted = 1u << 2;
++static constexpr uint16_t kStatusInternalFault = 1u << 3;
++static constexpr size_t kHeaderSize = 8;
++static constexpr size_t kCrcSize = 2;
++static constexpr size_t kTargetCount = 8;
++static constexpr size_t kTelemetryFloatCount = 13;
++static constexpr size_t kTargetsPayloadSize = kTargetCount * sizeof(float);
++static constexpr size_t kStatusPayloadSize = sizeof(uint16_t);
++static constexpr size_t kStatePayloadSize = sizeof(uint16_t) + kTelemetryFloatCount * sizeof(float);
++static constexpr size_t kMaxPayloadSize = kStatePayloadSize;
++static constexpr size_t kMaxFrameSize = kHeaderSize + kMaxPayloadSize + kCrcSize;
++
++enum class ParseError : uint8_t {
++  kOk = 0,
++  kFrameTooShort,
++  kMagicMismatch,
++  kUnsupportedVersion,
++  kPayloadTooLarge,
++  kLengthMismatch,
++  kCrcMismatch,
++  kUnexpectedMessageType,
++  kUnexpectedPayloadSize,
++};
++
++struct FrameView {
++  uint8_t message_type = 0;
++  uint16_t sequence_id = 0;
++  const uint8_t *payload = nullptr;
++  uint16_t payload_len = 0;
++};
++
++struct TelemetryState {
++  float roll = 0.0f;
++  float pitch = 0.0f;
++  float angular_velocity_x = 0.0f;
++  float angular_velocity_y = 0.0f;
++  float angular_velocity_z = 0.0f;
++  float joint_feedback[kTargetCount] = {};
++};
++
++uint16_t Crc16Ccitt(const uint8_t *data, size_t len, uint16_t initial = 0xFFFFu);
++ParseError ExpectedFrameLengthFromHeader(const uint8_t *header, size_t header_len, size_t *out_frame_len);
++ParseError DecodeFrame(const uint8_t *frame, size_t frame_len, FrameView *out_frame);
++ParseError DecodeTargetsPayload(const FrameView &frame, float out_targets[kTargetCount]);
++size_t EncodeGetStateResponse(uint16_t sequence_id,
++                              uint16_t status,
++                              const TelemetryState &state,
++                              uint8_t *out_frame,
++                              size_t out_capacity);
++size_t EncodeSetTargetsResponse(uint16_t sequence_id,
++                                uint16_t status,
++                                uint8_t *out_frame,
++                                size_t out_capacity);
++
++}  // namespace rl_serial_v0
++
++#endif
+diff --git a/src/rlSerialProtocolV0.cpp b/src/rlSerialProtocolV0.cpp
+new file mode 100644
+index 0000000..d59428a
+--- /dev/null
++++ b/src/rlSerialProtocolV0.cpp
+@@ -0,0 +1,145 @@
++#include "rlSerialProtocolV0.h"
++
++#include <string.h>
++
++namespace rl_serial_v0 {
++namespace {
++
++uint16_t ReadLe16(const uint8_t *data) {
++  return static_cast<uint16_t>(data[0]) | static_cast<uint16_t>(data[1] << 8);
++}
++
++void WriteLe16(uint8_t *data, uint16_t value) {
++  data[0] = static_cast<uint8_t>(value & 0xFFu);
++  data[1] = static_cast<uint8_t>((value >> 8) & 0xFFu);
++}
++
++void WriteFloat32(uint8_t *data, float value) {
++  memcpy(data, &value, sizeof(float));
++}
++
++float ReadFloat32(const uint8_t *data) {
++  float value = 0.0f;
++  memcpy(&value, data, sizeof(float));
++  return value;
++}
++
++size_t EncodeFrame(uint8_t message_type,
++                   uint16_t sequence_id,
++                   const uint8_t *payload,
++                   uint16_t payload_len,
++                   uint8_t *out_frame,
++                   size_t out_capacity) {
++  const size_t frame_len = kHeaderSize + payload_len + kCrcSize;
++  if (out_frame == nullptr || out_capacity < frame_len || payload_len > kMaxPayloadSize) {
++    return 0;
++  }
++  out_frame[0] = kMagic0;
++  out_frame[1] = kMagic1;
++  out_frame[2] = kVersion;
++  out_frame[3] = message_type;
++  WriteLe16(out_frame + 4, sequence_id);
++  WriteLe16(out_frame + 6, payload_len);
++  if (payload_len > 0 && payload != nullptr) {
++    memcpy(out_frame + kHeaderSize, payload, payload_len);
++  }
++  WriteLe16(out_frame + kHeaderSize + payload_len, Crc16Ccitt(out_frame, kHeaderSize + payload_len));
++  return frame_len;
++}
++
++}  // namespace
++
++uint16_t Crc16Ccitt(const uint8_t *data, size_t len, uint16_t initial) {
++  uint16_t crc = initial;
++  for (size_t i = 0; i < len; ++i) {
++    crc ^= static_cast<uint16_t>(data[i]) << 8;
++    for (uint8_t bit = 0; bit < 8; ++bit) {
++      crc = (crc & 0x8000u) ? static_cast<uint16_t>((crc << 1) ^ 0x1021u)
++                            : static_cast<uint16_t>(crc << 1);
++    }
++  }
++  return crc;
++}
++
++ParseError ExpectedFrameLengthFromHeader(const uint8_t *header, size_t header_len, size_t *out_frame_len) {
++  if (header == nullptr || out_frame_len == nullptr || header_len < kHeaderSize) {
++    return ParseError::kFrameTooShort;
++  }
++  if (header[0] != kMagic0 || header[1] != kMagic1) {
++    return ParseError::kMagicMismatch;
++  }
++  if (header[2] != kVersion) {
++    return ParseError::kUnsupportedVersion;
++  }
++  const uint16_t payload_len = ReadLe16(header + 6);
++  if (payload_len > kMaxPayloadSize) {
++    return ParseError::kPayloadTooLarge;
++  }
++  *out_frame_len = kHeaderSize + payload_len + kCrcSize;
++  return ParseError::kOk;
++}
++
++ParseError DecodeFrame(const uint8_t *frame, size_t frame_len, FrameView *out_frame) {
++  size_t expected = 0;
++  const ParseError header_status = ExpectedFrameLengthFromHeader(frame, frame_len, &expected);
++  if (header_status != ParseError::kOk) {
++    return header_status;
++  }
++  if (frame_len != expected) {
++    return ParseError::kLengthMismatch;
++  }
++  const uint16_t expected_crc = Crc16Ccitt(frame, frame_len - kCrcSize);
++  const uint16_t actual_crc = ReadLe16(frame + frame_len - kCrcSize);
++  if (expected_crc != actual_crc) {
++    return ParseError::kCrcMismatch;
++  }
++  out_frame->message_type = frame[3];
++  out_frame->sequence_id = ReadLe16(frame + 4);
++  out_frame->payload_len = ReadLe16(frame + 6);
++  out_frame->payload = frame + kHeaderSize;
++  return ParseError::kOk;
++}
++
++ParseError DecodeTargetsPayload(const FrameView &frame, float out_targets[kTargetCount]) {
++  if (frame.message_type != kMsgSetTargetsReq || out_targets == nullptr) {
++    return ParseError::kUnexpectedMessageType;
++  }
++  if (frame.payload_len != kTargetsPayloadSize) {
++    return ParseError::kUnexpectedPayloadSize;
++  }
++
++  for (size_t i = 0; i < kTargetCount; ++i) {
++    out_targets[i] = ReadFloat32(frame.payload + i * sizeof(float));
++  }
++  return ParseError::kOk;
++}
++
++size_t EncodeGetStateResponse(uint16_t sequence_id,
++                              uint16_t status,
++                              const TelemetryState &state,
++                              uint8_t *out_frame,
++                              size_t out_capacity) {
++  uint8_t payload[kStatePayloadSize] = {};
++  WriteLe16(payload, status);
++  uint8_t *floats = payload + sizeof(uint16_t);
++  WriteFloat32(floats + 0 * sizeof(float), state.roll);
++  WriteFloat32(floats + 1 * sizeof(float), state.pitch);
++  WriteFloat32(floats + 2 * sizeof(float), state.angular_velocity_x);
++  WriteFloat32(floats + 3 * sizeof(float), state.angular_velocity_y);
++  WriteFloat32(floats + 4 * sizeof(float), state.angular_velocity_z);
++  for (size_t i = 0; i < kTargetCount; ++i) {
++    WriteFloat32(floats + (5 + i) * sizeof(float), state.joint_feedback[i]);
++  }
++  return EncodeFrame(kMsgGetStateResp, sequence_id, payload, sizeof(payload), out_frame, out_capacity);
++}
++
++size_t EncodeSetTargetsResponse(uint16_t sequence_id,
++                                uint16_t status,
++                                uint8_t *out_frame,
++                                size_t out_capacity) {
++  uint8_t payload[kStatusPayloadSize] = {};
++  WriteLe16(payload, status);
++  return EncodeFrame(kMsgSetTargetsResp, sequence_id, payload, sizeof(payload), out_frame, out_capacity);
++}
++
++}  // namespace rl_serial_v0
+diff --git a/src/rlFrameReaderV0.h b/src/rlFrameReaderV0.h
+new file mode 100644
+index 0000000..2cac6da
+--- /dev/null
++++ b/src/rlFrameReaderV0.h
+@@ -0,0 +1,33 @@
++#ifndef RL_FRAME_READER_V0_H
++#define RL_FRAME_READER_V0_H
++
++#include "rlSerialProtocolV0.h"
++
++namespace rl_frame_reader_v0 {
++
++enum class FeedStatus : uint8_t {
++  kNeedMore = 0,
++  kFrameReady,
++  kHeaderInvalid,
++  kFrameInvalid,
++  kBufferOverflow,
++};
++
++class FrameReader {
++ public:
++  FrameReader() : buffered_(0), expected_(0) {}
++  void Reset() { buffered_ = expected_ = 0; }
++  FeedStatus Feed(const uint8_t *data, size_t len, rl_serial_v0::FrameView *out_frame);
++  const uint8_t *frame_data() const { return buffer_; }
++  size_t frame_size() const { return buffered_; }
++  size_t expected_frame_size() const { return expected_; }
++
++ private:
++  uint8_t buffer_[rl_serial_v0::kMaxFrameSize] = {};
++  size_t buffered_;
++  size_t expected_;
++};
++
++}  // namespace rl_frame_reader_v0
++
++#endif
+diff --git a/src/rlFrameReaderV0.cpp b/src/rlFrameReaderV0.cpp
+new file mode 100644
+index 0000000..8ccf80f
+--- /dev/null
++++ b/src/rlFrameReaderV0.cpp
+@@ -0,0 +1,37 @@
++#include "rlFrameReaderV0.h"
++
++#include <string.h>
++
++namespace rl_frame_reader_v0 {
++
++FeedStatus FrameReader::Feed(const uint8_t *data, size_t len, rl_serial_v0::FrameView *out_frame) {
++  if (data == nullptr || len == 0) {
++    return FeedStatus::kNeedMore;
++  }
++  if (buffered_ + len > sizeof(buffer_)) {
++    Reset();
++    return FeedStatus::kBufferOverflow;
++  }
++  memcpy(buffer_ + buffered_, data, len);
++  buffered_ += len;
++  if (expected_ == 0 && buffered_ >= rl_serial_v0::kHeaderSize) {
++    size_t expected_size = 0;
++    if (rl_serial_v0::ExpectedFrameLengthFromHeader(
++            buffer_, rl_serial_v0::kHeaderSize, &expected_size) != rl_serial_v0::ParseError::kOk) {
++      Reset();
++      return FeedStatus::kHeaderInvalid;
++    }
++    expected_ = expected_size;
++  }
++  if (expected_ == 0 || buffered_ < expected_) {
++    return FeedStatus::kNeedMore;
++  }
++  if (buffered_ != expected_ ||
++      rl_serial_v0::DecodeFrame(buffer_, buffered_, out_frame) != rl_serial_v0::ParseError::kOk) {
++    Reset();
++    return FeedStatus::kFrameInvalid;
++  }
++  return FeedStatus::kFrameReady;
++}
++
++}  // namespace rl_frame_reader_v0

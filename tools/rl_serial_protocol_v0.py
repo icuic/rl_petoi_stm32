@@ -34,6 +34,8 @@ STATUS_FEEDBACK_VALID = 1 << 1
 STATUS_COMMAND_ACCEPTED = 1 << 2
 STATUS_INTERNAL_FAULT = 1 << 3
 
+DEFAULT_RL_TOKEN = b"Y"
+
 
 @dataclass(frozen=True)
 class TelemetryState:
@@ -173,6 +175,72 @@ def decode_state_payload(payload: bytes) -> tuple[int, TelemetryState]:
     return status, state
 
 
+def read_exact(port, size: int) -> bytes:
+    chunks: list[bytes] = []
+    remaining = size
+    while remaining > 0:
+        chunk = port.read(remaining)
+        if not chunk:
+            raise TimeoutError(f"timed out while reading {size} bytes")
+        chunks.append(chunk)
+        remaining -= len(chunk)
+    return b"".join(chunks)
+
+
+def read_serial_frame(port) -> DecodedFrame:
+    header = read_exact(port, HEADER_STRUCT.size)
+    magic, version, _message_type, _sequence_id, payload_len = HEADER_STRUCT.unpack(header)
+    if magic != MAGIC:
+        raise ValueError(f"unexpected response magic: {magic!r}")
+    if version != VERSION:
+        raise ValueError(f"unsupported response version: {version}")
+    payload_and_crc = read_exact(port, payload_len + CRC_STRUCT.size)
+    return decode_frame(header + payload_and_crc)
+
+
+def send_serial_request(port, frame: bytes, rl_token: bytes = DEFAULT_RL_TOKEN) -> DecodedFrame:
+    if len(rl_token) != 1:
+        raise ValueError("rl_token must be exactly one byte")
+    port.write(rl_token + frame)
+    port.flush()
+    return read_serial_frame(port)
+
+
+def status_flags(status: int) -> list[str]:
+    flags: list[str] = []
+    if status & STATUS_TELEMETRY_VALID:
+        flags.append("telemetry_valid")
+    if status & STATUS_FEEDBACK_VALID:
+        flags.append("feedback_valid")
+    if status & STATUS_COMMAND_ACCEPTED:
+        flags.append("command_accepted")
+    if status & STATUS_INTERNAL_FAULT:
+        flags.append("internal_fault")
+    return flags
+
+
+def parse_target_arg(value: str) -> tuple[float, ...]:
+    return _pack_float_tuple((part.strip() for part in value.split(",")), TARGET_FLOAT_COUNT, "joint_target")
+
+
+def serial_frame_to_json(frame: DecodedFrame) -> dict[str, object]:
+    result: dict[str, object] = {
+        "message_type": frame.message_type,
+        "sequence_id": frame.sequence_id,
+        "payload_hex": frame.payload.hex(),
+    }
+    if frame.message_type in {MSG_GET_STATE_RESP, MSG_STEP_RESP}:
+        status, state = decode_state_payload(frame.payload)
+        result["status"] = status
+        result["status_flags"] = status_flags(status)
+        result["state"] = asdict(state)
+    elif frame.message_type == MSG_SET_TARGETS_RESP:
+        status = decode_status_payload(frame.payload)
+        result["status"] = status
+        result["status_flags"] = status_flags(status)
+    return result
+
+
 def _pack_float_tuple(values: Iterable[float], expected_len: int, label: str) -> tuple[float, ...]:
     numbers = tuple(float(value) for value in values)
     if len(numbers) != expected_len:
@@ -239,6 +307,17 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--self-test", action="store_true", help="Encode and decode reference frames.")
     parser.add_argument("--write-vectors", type=Path, default=None, help="Write JSON protocol vectors to this path.")
+    parser.add_argument("--port", default=None, help="Serial port for an OpenCatEsp32 RL smoke probe, e.g. /dev/ttyUSB0.")
+    parser.add_argument("--baud", type=int, default=115200, help="Serial baud rate for --port.")
+    parser.add_argument("--timeout", type=float, default=1.0, help="Serial read timeout in seconds.")
+    parser.add_argument("--rl-token", default=DEFAULT_RL_TOKEN.decode("ascii"), help="OpenCat token before an RL frame.")
+    parser.add_argument("--sequence-id", type=int, default=1, help="Initial sequence id for serial probes.")
+    parser.add_argument("--get-state", action="store_true", help="Send one RL_GET_STATE request over --port.")
+    parser.add_argument(
+        "--set-targets",
+        default=None,
+        help="Send one RL_SET_TARGETS request over --port. Value is 8 comma-separated target angles in radians.",
+    )
     return parser.parse_args()
 
 
@@ -254,7 +333,58 @@ def main() -> None:
     if args.self_test:
         print(json.dumps(run_self_test(), indent=2))
 
-    if not args.write_vectors and not args.self_test:
+    if not args.port and (args.get_state or args.set_targets is not None):
+        frames = []
+        sequence_id = args.sequence_id
+        if args.get_state:
+            frames.append(
+                {
+                    "request": "get_state",
+                    "sequence_id": sequence_id,
+                    "wire_hex": (args.rl_token.encode("latin1") + encode_get_state_request(sequence_id)).hex(),
+                }
+            )
+            sequence_id += 1
+        if args.set_targets is not None:
+            frames.append(
+                {
+                    "request": "set_targets",
+                    "sequence_id": sequence_id,
+                    "wire_hex": (
+                        args.rl_token.encode("latin1")
+                        + encode_set_targets_request(sequence_id, parse_target_arg(args.set_targets))
+                    ).hex(),
+                }
+            )
+        print(json.dumps(frames, indent=2))
+
+    if args.port:
+        try:
+            import serial
+        except ImportError as exc:
+            raise SystemExit("pyserial is required for --port. Install it with: python3 -m pip install pyserial") from exc
+
+        responses = []
+        sequence_id = args.sequence_id
+        with serial.Serial(args.port, args.baud, timeout=args.timeout) as port:
+            if args.get_state:
+                response = send_serial_request(
+                    port,
+                    encode_get_state_request(sequence_id),
+                    args.rl_token.encode("latin1"),
+                )
+                responses.append({"request": "get_state", "response": serial_frame_to_json(response)})
+                sequence_id += 1
+            if args.set_targets is not None:
+                response = send_serial_request(
+                    port,
+                    encode_set_targets_request(sequence_id, parse_target_arg(args.set_targets)),
+                    args.rl_token.encode("latin1"),
+                )
+                responses.append({"request": "set_targets", "response": serial_frame_to_json(response)})
+        print(json.dumps(responses, indent=2))
+
+    if not args.write_vectors and not args.self_test and not args.port and not args.get_state and args.set_targets is None:
         print(json.dumps(example_vectors(), indent=2))
 
 

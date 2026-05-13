@@ -1,0 +1,14 @@
+diff --git a/src/OpenCat.h b/src/OpenCat.h
+index 0000000..1111111 100644
+--- a/src/OpenCat.h
++++ b/src/OpenCat.h
+@@
+ #define T_EXTENSION 'X'
++#define T_RL_FRAME 'Y'
+@@
++#include "rlSerialProtocolV0.h"
++#include "rlFrameReaderV0.h"
++#include "rlDispatchBridgeV0.h"
++
++uint8_t rlResponse[rl_serial_v0::kMaxFrameSize] = {};
++size_t rlResponseLen = 0;

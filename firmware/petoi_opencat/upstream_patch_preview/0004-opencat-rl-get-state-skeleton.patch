@@ -1,0 +1,126 @@
+diff --git a/src/OpenCat.h b/src/OpenCat.h
+index 0000000..4444444 100644
+--- a/src/OpenCat.h
++++ b/src/OpenCat.h
+@@
+ #define T_EXTENSION 'X'
++#define T_RL_FRAME 'Y'
+@@
++#include "rlSerialProtocolV0.h"
++#include "rlFrameReaderV0.h"
++#include "rlCommandAdapterV0.h"
++
++rl_frame_reader_v0::FrameReader rlFrameReader;
++uint8_t rlResponse[rl_serial_v0::kMaxFrameSize] = {};
++size_t rlResponseLen = 0;
++
++bool readRlTelemetryStub(rl_serial_v0::TelemetryState *outState, void *) {
++  if (outState == nullptr) {
++    return false;
++  }
++  *outState = rl_serial_v0::TelemetryState{};
++  return true;
++}
++
++const rl_command_adapter_v0::TelemetryProvider rlTelemetryProvider = {
++    readRlTelemetryStub,
++    nullptr,
++};
++
++const rl_command_adapter_v0::TargetActuator rlNoTargetActuator = {
++    nullptr,
++    nullptr,
++};
+diff --git a/src/moduleManager.h b/src/moduleManager.h
+index 0000000..5555555 100644
+--- a/src/moduleManager.h
++++ b/src/moduleManager.h
+@@
++bool readExact(Stream *serialPort, uint8_t *buffer, size_t len, unsigned long timeoutMs) {
++  size_t received = 0;
++  const unsigned long start = millis();
++  while (received < len && millis() - start < timeoutMs) {
++    if (serialPort->available()) {
++      buffer[received++] = static_cast<uint8_t>(serialPort->read());
++    }
++  }
++  return received == len;
++}
++
+ void read_serial() {
+@@
+     token = serialPort->read();
+     lowerToken = tolower(token);
+     newCmdIdx = 2;
++
++    if (token == T_RL_FRAME) {
++      rlFrameReader.Reset();
++
++      uint8_t header[rl_serial_v0::kHeaderSize] = {};
++      if (!readExact(serialPort, header, sizeof(header), SERIAL_TIMEOUT)) {
++        rlFrameReader.Reset();
++        newCmdIdx = 0;
++        return;
++      }
++
++      rl_serial_v0::FrameView frame;
++      const auto headerStatus = rlFrameReader.Feed(header, sizeof(header), &frame);
++      if (headerStatus == rl_frame_reader_v0::FeedStatus::kHeaderInvalid ||
++          headerStatus == rl_frame_reader_v0::FeedStatus::kBufferOverflow) {
++        newCmdIdx = 0;
++        return;
++      }
++
++      const size_t expectedFrameSize = rlFrameReader.expected_frame_size();
++      const size_t remainder = expectedFrameSize - rl_serial_v0::kHeaderSize;
++      uint8_t tail[rl_serial_v0::kMaxFrameSize] = {};
++      if (!readExact(serialPort, tail, remainder, SERIAL_TIMEOUT)) {
++        rlFrameReader.Reset();
++        newCmdIdx = 0;
++        return;
++      }
++
++      const auto finalStatus = rlFrameReader.Feed(tail, remainder, &frame);
++      if (finalStatus != rl_frame_reader_v0::FeedStatus::kFrameReady) {
++        rlFrameReader.Reset();
++        newCmdIdx = 0;
++        return;
++      }
++
++      cmdLen = expectedFrameSize;
++      newCmdIdx = 2;
++      return;
++    }
+diff --git a/src/reaction.h b/src/reaction.h
+index 0000000..6666666 100644
+--- a/src/reaction.h
++++ b/src/reaction.h
+@@
+     switch (token) {
++      case T_RL_FRAME:
++        {
++          const uint8_t *frameData = rlFrameReader.frame_data();
++          const size_t frameSize = rlFrameReader.frame_size();
++          rl_serial_v0::FrameView frame;
++          if (rl_serial_v0::DecodeFrame(frameData, frameSize, &frame) != rl_serial_v0::ParseError::kOk) {
++            rlFrameReader.Reset();
++            token = '\0';
++            break;
++          }
++
++          rlResponseLen = 0;
++          const auto handleStatus =
++              rl_command_adapter_v0::HandleDecodedFrame(frame,
++                                                        rlTelemetryProvider,
++                                                        rlNoTargetActuator,
++                                                        rlResponse,
++                                                        sizeof(rlResponse),
++                                                        &rlResponseLen);
++          if (handleStatus == rl_command_adapter_v0::HandleStatus::kOk && rlResponseLen > 0) {
++            Serial.write(rlResponse, rlResponseLen);
++          }
++
++          rlFrameReader.Reset();
++          token = '\0';
++          break;
++        }

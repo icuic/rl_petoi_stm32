@@ -1,0 +1,20 @@
+diff --git a/src/reaction.h b/src/reaction.h
+index 0000000..3333333 100644
+--- a/src/reaction.h
++++ b/src/reaction.h
+@@
+     switch (token) {
++      case T_RL_FRAME:
++        {
++          rl_serial_v0::FrameView ignored;
++          size_t responseLen = 0;
++          const auto status =
++              rlDispatchBridge.FlushBufferedFrame(rlResponse,
++                                                  sizeof(rlResponse),
++                                                  &responseLen);
++          if (status == rl_dispatch_bridge_v0::DispatchStatus::kResponseReady) {
++            activeSerialPort->write(rlResponse, responseLen);
++          }
++          token = '\0';
++          break;
++        }

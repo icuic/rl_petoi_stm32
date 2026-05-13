@@ -1,0 +1,203 @@
+diff --git a/src/OpenCat.h b/src/OpenCat.h
+index bc87419..84dddd1 100644
+--- a/src/OpenCat.h
++++ b/src/OpenCat.h
+@@ -373,6 +373,7 @@ bool newBoard = false;
+ #define T_DECELERATE ','
+ 
+ #define T_EXTENSION 'X'
++#define T_RL_FRAME 'Y'
+ #define EXTENSION_GROVE_SERIAL 'S'  // connect to Grove UART2
+ #define EXTENSION_VOICE \
+   'A'  // connect to Grove UART2 (on V0_*: a slide switch can choose the voice or the Grove), or UART1 (on V1). Hidden
+@@ -406,6 +407,16 @@ char currentLan;
+ float degPerRad = 180 / M_PI;
+ float radPerDeg = M_PI / 180;
+ 
++#include "rlSerialProtocolV0.h"
++#include "rlFrameReaderV0.h"
++
++rl_frame_reader_v0::FrameReader rlFrameReader;
++uint8_t rlResponse[rl_serial_v0::kMaxFrameSize] = {};
++size_t rlResponseLen = 0;
++float rlPrevYprDeg[3] = {};
++unsigned long rlPrevTelemetryMicros = 0;
++bool rlTelemetryHasPrev = false;
++
+ // control related variables
+ #define IDLE_TIME 1000
+ long idleTimer = 0;
+diff --git a/src/moduleManager.h b/src/moduleManager.h
+index 2204031..91d0c21 100644
+--- a/src/moduleManager.h
++++ b/src/moduleManager.h
+@@ -374,6 +374,17 @@ void initModuleManager() {
+   showModuleStatus();
+ }
+ 
++bool readExact(Stream *serialPort, uint8_t *buffer, size_t len, unsigned long timeoutMs) {
++  size_t received = 0;
++  const unsigned long start = millis();
++  while (received < len && millis() - start < timeoutMs) {
++    if (serialPort->available()) {
++      buffer[received++] = static_cast<uint8_t>(serialPort->read());
++    }
++  }
++  return received == len;
++}
++
+ void read_serial() {
+   Stream *serialPort = NULL;
+ // String source;
+@@ -393,6 +404,43 @@ void read_serial() {
+     token = serialPort->read();
+     lowerToken = tolower(token);
+     newCmdIdx = 2;
++    if (token == T_RL_FRAME) {
++      rlFrameReader.Reset();
++
++      uint8_t header[rl_serial_v0::kHeaderSize] = {};
++      if (!readExact(serialPort, header, sizeof(header), SERIAL_TIMEOUT)) {
++        rlFrameReader.Reset();
++        newCmdIdx = 0;
++        return;
++      }
++
++      rl_serial_v0::FrameView frame;
++      const auto headerStatus = rlFrameReader.Feed(header, sizeof(header), &frame);
++      if (headerStatus == rl_frame_reader_v0::FeedStatus::kHeaderInvalid ||
++          headerStatus == rl_frame_reader_v0::FeedStatus::kBufferOverflow) {
++        newCmdIdx = 0;
++        return;
++      }
++
++      const size_t expectedFrameSize = rlFrameReader.expected_frame_size();
++      const size_t remainder = expectedFrameSize - rl_serial_v0::kHeaderSize;
++      uint8_t tail[rl_serial_v0::kMaxFrameSize] = {};
++      if (!readExact(serialPort, tail, remainder, SERIAL_TIMEOUT)) {
++        rlFrameReader.Reset();
++        newCmdIdx = 0;
++        return;
++      }
++
++      if (rlFrameReader.Feed(tail, remainder, &frame) != rl_frame_reader_v0::FeedStatus::kFrameReady) {
++        rlFrameReader.Reset();
++        newCmdIdx = 0;
++        return;
++      }
++
++      cmdLen = expectedFrameSize;
++      newCmdIdx = 2;
++      return;
++    }
+     delay(1);                                                  // leave enough time for serial read
+     terminator = (token >= 'A' && token <= 'Z') ? '~' : '\n';  // capitalized tokens use binary encoding for long data commands
+                                                                //'~' ASCII code = 126; may introduce bug when the angle is 126 so only use angles <= 125
+diff --git a/src/reaction.h b/src/reaction.h
+index 1aa8a0d..24587c1 100644
+--- a/src/reaction.h
++++ b/src/reaction.h
+@@ -392,6 +392,103 @@ void reaction() {  // Reminder:  reaction() is repeatedly called in the "forever
+ #endif
+ 
+     switch (token) {
++      case T_RL_FRAME:
++        {
++          rl_serial_v0::FrameView frame;
++          if (rl_serial_v0::DecodeFrame(rlFrameReader.frame_data(), rlFrameReader.frame_size(), &frame) !=
++              rl_serial_v0::ParseError::kOk) {
++            rlFrameReader.Reset();
++            token = '\0';
++            break;
++          }
++
++          if (frame.message_type == rl_serial_v0::kMsgSetTargetsReq) {
++            float targets[rl_serial_v0::kTargetCount] = {};
++            bool targetsAccepted =
++                rl_serial_v0::DecodeTargetsPayload(frame, targets) == rl_serial_v0::ParseError::kOk;
++
++            float targetDeg[rl_serial_v0::kTargetCount] = {};
++            for (byte i = 0; i < rl_serial_v0::kTargetCount && targetsAccepted; i++) {
++              const byte jointIndex = DOF - WALKING_DOF + i;
++              targetDeg[i] = targets[i] * degPerRad;
++              targetsAccepted = (targetDeg[i] == targetDeg[i]) &&
++                                targetDeg[i] >= angleLimit[jointIndex][0] &&
++                                targetDeg[i] <= angleLimit[jointIndex][1];
++            }
++
++            if (targetsAccepted) {
++              for (byte i = 0; i < rl_serial_v0::kTargetCount; i++) {
++                calibratedPWM(DOF - WALKING_DOF + i, targetDeg[i]);
++              }
++            }
++
++            const uint16_t status =
++                targetsAccepted ? rl_serial_v0::kStatusCommandAccepted : rl_serial_v0::kStatusInternalFault;
++            rlResponseLen =
++                rl_serial_v0::EncodeSetTargetsResponse(frame.sequence_id, status, rlResponse, sizeof(rlResponse));
++            if (rlResponseLen > 0) {
++              Serial.write(rlResponse, rlResponseLen);
++            }
++            rlFrameReader.Reset();
++            token = '\0';
++            break;
++          }
++
++          if (frame.message_type != rl_serial_v0::kMsgGetStateReq) {
++            rlFrameReader.Reset();
++            token = '\0';
++            break;
++          }
++
++          rl_serial_v0::TelemetryState state;
++          state.roll = ypr[2] * radPerDeg;
++          state.pitch = ypr[1] * radPerDeg;
++
++          const unsigned long nowMicros = micros();
++          const float dt = (rlTelemetryHasPrev && nowMicros != rlPrevTelemetryMicros)
++                               ? (nowMicros - rlPrevTelemetryMicros) / 1000000.0f
++                               : 0.0f;
++#ifdef IMU_ICM42670
++          if (icmQ) {
++            state.angular_velocity_x = icm.gx_real * radPerDeg;
++            state.angular_velocity_y = icm.gy_real * radPerDeg;
++            state.angular_velocity_z = icm.gz_real * radPerDeg;
++          } else
++#endif
++              if (dt > 0.0f) {
++            state.angular_velocity_x = (ypr[2] - rlPrevYprDeg[2]) * radPerDeg / dt;
++            state.angular_velocity_y = (ypr[1] - rlPrevYprDeg[1]) * radPerDeg / dt;
++            state.angular_velocity_z = (ypr[0] - rlPrevYprDeg[0]) * radPerDeg / dt;
++          }
++          for (byte i = 0; i < 3; i++) {
++            rlPrevYprDeg[i] = ypr[i];
++          }
++          rlPrevTelemetryMicros = nowMicros;
++          rlTelemetryHasPrev = true;
++
++          bool jointFeedbackValid = true;
++          for (byte i = 0; i < rl_serial_v0::kTargetCount; i++) {
++            const byte jointIndex = DOF - WALKING_DOF + i;
++            state.joint_feedback[i] = currentAng[jointIndex] * radPerDeg;
++            jointFeedbackValid = jointFeedbackValid && connectedFeedbackServo[jointIndex] > 0;
++          }
++
++          uint16_t status = 0;
++          if (updateGyroQ && (icmQ || mpuQ)) {
++            status |= rl_serial_v0::kStatusTelemetryValid;
++          }
++          if (jointFeedbackValid) {
++            status |= rl_serial_v0::kStatusFeedbackValid;
++          }
++          rlResponseLen =
++              rl_serial_v0::EncodeGetStateResponse(frame.sequence_id, status, state, rlResponse, sizeof(rlResponse));
++          if (rlResponseLen > 0) {
++            Serial.write(rlResponse, rlResponseLen);
++          }
++          rlFrameReader.Reset();
++          token = '\0';
++          break;
++        }
+       case T_HELP_INFO:
+         {
+           PTLF("* Please refer to docs.petoi.com.\nEnter any character to continue.");

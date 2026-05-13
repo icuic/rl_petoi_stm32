@@ -1,0 +1,60 @@
+diff --git a/src/moduleManager.h b/src/moduleManager.h
+index 0000000..2222222 100644
+--- a/src/moduleManager.h
++++ b/src/moduleManager.h
+@@
++bool readExact(Stream *serialPort, uint8_t *buffer, size_t len, unsigned long timeoutMs) {
++  size_t received = 0;
++  const unsigned long start = millis();
++  while (received < len && millis() - start < timeoutMs) {
++    if (serialPort->available()) {
++      buffer[received++] = static_cast<uint8_t>(serialPort->read());
++    }
++  }
++  return received == len;
++}
++
+ void read_serial() {
+@@
+     token = serialPort->read();
+     lowerToken = tolower(token);
+     newCmdIdx = 2;
++
++    if (token == T_RL_FRAME) {
++      rlFrameReader.Reset();
++
++      uint8_t header[rl_serial_v0::kHeaderSize] = {};
++      if (!readExact(serialPort, header, sizeof(header), SERIAL_TIMEOUT)) {
++        rlFrameReader.Reset();
++        newCmdIdx = 0;
++        return;
++      }
++
++      rl_serial_v0::FrameView ignored;
++      const auto headerStatus = rlFrameReader.Feed(header, sizeof(header), &ignored);
++      if (headerStatus == rl_frame_reader_v0::FeedStatus::kHeaderInvalid ||
++          headerStatus == rl_frame_reader_v0::FeedStatus::kBufferOverflow) {
++        newCmdIdx = 0;
++        return;
++      }
++
++      const size_t expected = rlFrameReader.expected_frame_size();
++      const size_t remainder = expected - rl_serial_v0::kHeaderSize;
++      uint8_t tail[rl_serial_v0::kMaxFrameSize] = {};
++      if (!readExact(serialPort, tail, remainder, SERIAL_TIMEOUT)) {
++        rlFrameReader.Reset();
++        newCmdIdx = 0;
++        return;
++      }
++
++      const auto finalStatus = rlFrameReader.Feed(tail, remainder, &ignored);
++      if (finalStatus != rl_frame_reader_v0::FeedStatus::kFrameReady) {
++        rlFrameReader.Reset();
++        newCmdIdx = 0;
++        return;
++      }
++
++      cmdLen = expected;
++      newCmdIdx = 2;
++      return;
++    }

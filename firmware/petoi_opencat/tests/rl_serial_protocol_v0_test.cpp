@@ -52,6 +52,11 @@ int main() {
   if (DecodeFrame(request, request_len, &request_frame) != ParseError::kOk) {
     return Fail("failed to decode step request frame");
   }
+  size_t expected_request_len = 0;
+  if (ExpectedFrameLengthFromHeader(request, kHeaderSize, &expected_request_len) != ParseError::kOk ||
+      expected_request_len != request_len) {
+    return Fail("failed to infer request frame length from header");
+  }
   if (request_frame.message_type != kMsgStepReq || request_frame.sequence_id != 9) {
     return Fail("unexpected step request metadata");
   }
