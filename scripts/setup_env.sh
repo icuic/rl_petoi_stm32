@@ -75,6 +75,16 @@ install_apt_packages() {
     libglew-dev \
     libosmesa6 \
     libusb-1.0-0 \
+    libxkbcommon-x11-0 \
+    libxcb-icccm4 \
+    libxcb-image0 \
+    libxcb-keysyms1 \
+    libxcb-render-util0 \
+    libxcb-render0 \
+    libxcb-shape0 \
+    libxcb-xkb1 \
+    libfreetype6 \
+    fontconfig \
     unzip
 }
 

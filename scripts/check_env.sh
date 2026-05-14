@@ -182,16 +182,14 @@ except Exception as exc:
 fi
 
 section "ST Edge AI"
+STEDGEAI_BIN=""
 if command -v stedgeai >/dev/null 2>&1; then
   STEDGEAI_BIN="$(command -v stedgeai)"
-  ok "stedgeai: ${STEDGEAI_BIN}"
-  "${STEDGEAI_BIN}" --version || warn "stedgeai --version failed"
-elif [[ -x "${ROOT_DIR}/.tools/stedgeai/stedgeai" ]]; then
-  STEDGEAI_BIN="${ROOT_DIR}/.tools/stedgeai/stedgeai"
-  ok "stedgeai: ${STEDGEAI_BIN}"
-  "${STEDGEAI_BIN}" --version || warn "stedgeai --version failed"
-elif [[ -x "${ROOT_DIR}/.tools/stedgeai/bin/stedgeai" ]]; then
-  STEDGEAI_BIN="${ROOT_DIR}/.tools/stedgeai/bin/stedgeai"
+else
+  STEDGEAI_BIN="$(find "${ROOT_DIR}/.tools/stedgeai" -type f -name stedgeai -perm /111 2>/dev/null | head -n 1 || true)"
+fi
+
+if [[ -n "${STEDGEAI_BIN}" ]]; then
   ok "stedgeai: ${STEDGEAI_BIN}"
   "${STEDGEAI_BIN}" --version || warn "stedgeai --version failed"
 else
