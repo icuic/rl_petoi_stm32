@@ -181,6 +181,23 @@ except Exception as exc:
 '
 fi
 
+section "ST Edge AI"
+if command -v stedgeai >/dev/null 2>&1; then
+  STEDGEAI_BIN="$(command -v stedgeai)"
+  ok "stedgeai: ${STEDGEAI_BIN}"
+  "${STEDGEAI_BIN}" --version || warn "stedgeai --version failed"
+elif [[ -x "${ROOT_DIR}/.tools/stedgeai/stedgeai" ]]; then
+  STEDGEAI_BIN="${ROOT_DIR}/.tools/stedgeai/stedgeai"
+  ok "stedgeai: ${STEDGEAI_BIN}"
+  "${STEDGEAI_BIN}" --version || warn "stedgeai --version failed"
+elif [[ -x "${ROOT_DIR}/.tools/stedgeai/bin/stedgeai" ]]; then
+  STEDGEAI_BIN="${ROOT_DIR}/.tools/stedgeai/bin/stedgeai"
+  ok "stedgeai: ${STEDGEAI_BIN}"
+  "${STEDGEAI_BIN}" --version || warn "stedgeai --version failed"
+else
+  warn "stedgeai not found; run scripts/setup_stedgeai.sh after installing ST Edge AI Core locally"
+fi
+
 section "Recommended Minimums"
 printf 'CPU: 8 vCPU is OK for env development and small CPU rollouts.\n'
 printf 'RAM: 30 GiB is OK for early RL experiments.\n'

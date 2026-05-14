@@ -115,6 +115,7 @@ rl_petoi/
 └── scripts/
     ├── setup_env.sh
     ├── check_env.sh
+    ├── setup_stedgeai.sh
     ├── train.sh
     ├── evaluate.sh
     ├── export_policy.sh
@@ -151,6 +152,7 @@ git clone git@github.com:icuic/rl_petoi_stm32.git
 cd rl_petoi_stm32
 bash install_codex.sh
 bash scripts/setup_env.sh
+bash scripts/setup_stedgeai.sh
 source .venv/bin/activate
 bash scripts/check_env.sh
 ```
@@ -159,7 +161,8 @@ bash scripts/check_env.sh
 
 - `install_codex.sh`：安装 Codex CLI 并开启远程连接。
 - `scripts/setup_env.sh`：创建项目目录、安装 Ubuntu 系统依赖、创建 `.venv`、安装 MuJoCo / Gymnasium / Stable-Baselines3 等 Python 依赖。
-- `scripts/check_env.sh`：一键检查 CPU、内存、磁盘、GPU、Python、MuJoCo、Stable-Baselines3 和 PyTorch CUDA 状态。
+- `scripts/setup_stedgeai.sh`：接入本地 ST Edge AI Core / `stedgeai` CLI，不使用 Web 工具链。
+- `scripts/check_env.sh`：一键检查 CPU、内存、磁盘、GPU、Python、MuJoCo、Stable-Baselines3、PyTorch CUDA 和 ST Edge AI CLI 状态。
 - `requirements.txt`：记录训练侧基础依赖，后续新增库时必须同步更新。
 - `docs/environment.md`：记录环境重建流程、依赖策略和后续增强项。
 
