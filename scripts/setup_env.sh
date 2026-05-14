@@ -59,6 +59,7 @@ install_apt_packages() {
   sudo apt-get install -y \
     build-essential \
     cmake \
+    gcc-arm-none-eabi \
     git \
     git-lfs \
     curl \

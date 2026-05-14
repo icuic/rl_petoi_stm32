@@ -196,6 +196,15 @@ else
   warn "stedgeai not found; run scripts/setup_stedgeai.sh after installing ST Edge AI Core locally"
 fi
 
+section "ARM Toolchain"
+if command -v arm-none-eabi-gcc >/dev/null 2>&1; then
+  ARM_GCC_BIN="$(command -v arm-none-eabi-gcc)"
+  ok "arm-none-eabi-gcc: ${ARM_GCC_BIN}"
+  arm-none-eabi-gcc --version | head -n 1
+else
+  warn "arm-none-eabi-gcc not found; install gcc-arm-none-eabi for STM32 target code-size estimates"
+fi
+
 section "Recommended Minimums"
 printf 'CPU: 8 vCPU is OK for env development and small CPU rollouts.\n'
 printf 'RAM: 30 GiB is OK for early RL experiments.\n'
