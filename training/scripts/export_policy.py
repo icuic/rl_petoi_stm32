@@ -67,6 +67,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--samples", type=int, default=32, help="Number of observations used for parity checks.")
     parser.add_argument("--seed", type=int, default=None, help="Verification seed. Defaults to config seed.")
     parser.add_argument("--opset", type=int, default=17, help="ONNX opset version.")
+    parser.add_argument(
+        "--vector-output",
+        type=Path,
+        default=None,
+        help="Optional JSON path for a single observation -> action inference vector.",
+    )
+    parser.add_argument(
+        "--vector-index",
+        type=int,
+        default=0,
+        help="Observation sample index used for --vector-output.",
+    )
     return parser.parse_args()
 
 
@@ -176,6 +188,30 @@ def main() -> None:
         "action_max": float(onnx_actions.max()),
     }
 
+    if args.vector_output is not None:
+        if args.vector_index < 0 or args.vector_index >= len(observations):
+            raise ValueError(f"--vector-index must be in [0, {len(observations) - 1}], got {args.vector_index}")
+        vector_idx = int(args.vector_index)
+        vector = {
+            "created_at": report["created_at"],
+            "config": str(args.config),
+            "source_model": str(model_path),
+            "onnx_model": str(args.output),
+            "sample_index": vector_idx,
+            "observation_dim": obs_dim,
+            "action_dim": action_dim,
+            "observation": observations[vector_idx].astype(float).tolist(),
+            "action": onnx_actions[vector_idx].astype(float).tolist(),
+            "torch_action": torch_actions[vector_idx].astype(float).tolist(),
+            "sb3_action": sb3_actions[vector_idx].astype(float).tolist(),
+            "torch_vs_onnx_max_abs_diff": float(torch_onnx_abs_diff[vector_idx].max()),
+            "sb3_vs_onnx_max_abs_diff": float(sb3_onnx_abs_diff[vector_idx].max()),
+        }
+        args.vector_output.parent.mkdir(parents=True, exist_ok=True)
+        with args.vector_output.open("w", encoding="utf-8") as f:
+            json.dump(vector, f, indent=2)
+            f.write("\n")
+
     args.report.parent.mkdir(parents=True, exist_ok=True)
     with args.report.open("w", encoding="utf-8") as f:
         json.dump(report, f, indent=2)
@@ -184,6 +220,8 @@ def main() -> None:
     print(json.dumps(report, indent=2))
     print(f"Saved ONNX model to {args.output}")
     print(f"Saved verification report to {args.report}")
+    if args.vector_output is not None:
+        print(f"Saved inference vector to {args.vector_output}")
 
 
 if __name__ == "__main__":
