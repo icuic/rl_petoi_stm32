@@ -13,18 +13,6 @@ log() {
   printf '\n[%s] %s\n' "$(date '+%H:%M:%S')" "$*"
 }
 
-find_stedgeai() {
-  if command -v stedgeai >/dev/null 2>&1; then
-    command -v stedgeai
-    return 0
-  fi
-  if command -v stm32ai >/dev/null 2>&1; then
-    command -v stm32ai
-    return 0
-  fi
-  return 1
-}
-
 if [[ ! -f "${ONNX_PATH}" ]]; then
   echo "ONNX model not found: ${ONNX_PATH}" >&2
   echo "Export it first, for example:" >&2
@@ -37,14 +25,13 @@ fi
 log "Running local ONNX deployability checker"
 bash scripts/check_policy_deployability.sh "${ONNX_PATH}" --report "${REPORT_PATH}"
 
-if ! EDGEAI_BIN="$(find_stedgeai)"; then
+if ! EDGEAI_BIN="$(command -v stedgeai)"; then
   cat <<EOF
 
 ST Edge AI CLI was not found on this server.
 
-Checked commands:
-  - stedgeai
-  - stm32ai
+Expected command:
+  stedgeai
 
 Current model:
   ${ONNX_PATH}
@@ -53,10 +40,8 @@ Local checker result was saved to:
   ${REPORT_PATH}
 
 Next options:
-  1. Install STM32Cube AI Studio / ST Edge AI Core locally and re-run this script.
-  2. Use STM32Cube.AI Developer Cloud to upload:
-       ${ONNX_PATH}
-  3. Keep using scripts/check_policy_deployability.sh as a pre-flight check before cloud upload.
+  1. Install ST Edge AI Core locally and re-run this script.
+  2. Keep using scripts/check_policy_deployability.sh as a local pre-flight check before ST code generation.
 EOF
   exit 0
 fi
