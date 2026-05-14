@@ -21,6 +21,8 @@ bash scripts/test_stm32_protocol.sh
 ST Edge AI 推理链路可用最小 M7 smoke 工程验证：
 
 ```bash
+bash scripts/setup_stm32_cubeh7.sh
+bash scripts/prepare_stm32_cmsis.sh
 bash scripts/prepare_stm32_ai_runtime.sh
 bash scripts/build_stm32_m7_smoke.sh
 ```

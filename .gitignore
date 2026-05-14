@@ -38,6 +38,8 @@ firmware/stm32h747_disco/App/inference/stedgeai/
 # Fetched third-party robot descriptions and meshes
 third_party/petoi/ros_opencat/
 third_party/petoi/OpenCatEsp32-Quadruped-Robot/
+third_party/st/STM32CubeH7/
+firmware/stm32h747_disco/App/cmsis/stm32h7/
 
 # IDE and OS files
 .idea/

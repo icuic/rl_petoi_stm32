@@ -11,6 +11,11 @@ if [[ ! -f "${ROOT_DIR}/firmware/stm32h747_disco/App/inference/stedgeai/generate
   exit 1
 fi
 
+if [[ ! -f "${ROOT_DIR}/firmware/stm32h747_disco/App/cmsis/stm32h7/startup/startup_stm32h747xihx.s" ]]; then
+  echo "Missing staged STM32H747 CMSIS startup. Run: bash scripts/prepare_stm32_cmsis.sh" >&2
+  exit 1
+fi
+
 cmake -S "${SOURCE_DIR}" -B "${BUILD_DIR}" \
   -DCMAKE_TOOLCHAIN_FILE="${TOOLCHAIN_FILE}" \
   -DCMAKE_BUILD_TYPE=Release
