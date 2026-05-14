@@ -33,6 +33,7 @@ assets/videos/*.mov
 build/
 st_ai_ws/
 st_ai_output/
+firmware/stm32h747_disco/App/inference/stedgeai/
 
 # Fetched third-party robot descriptions and meshes
 third_party/petoi/ros_opencat/
