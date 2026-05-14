@@ -9,5 +9,6 @@
 
 ```bash
 bash scripts/export_policy.sh training/configs/ppo_simple_quadruped.yaml
+bash scripts/check_policy_deployability.sh
 bash scripts/verify_policy_vector.sh
 ```
