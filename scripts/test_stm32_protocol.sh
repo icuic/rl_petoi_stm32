@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROTO_OUT="${TMPDIR:-/tmp}/stm32_rl_serial_protocol_v0_test"
 TRANSPORT_OUT="${TMPDIR:-/tmp}/stm32_rl_serial_transport_v0_test"
 POLICY_OUT="${TMPDIR:-/tmp}/stm32_rl_policy_runtime_v0_test"
+CONTROL_LOOP_OUT="${TMPDIR:-/tmp}/stm32_rl_control_loop_v0_test"
 
 cc -std=c11 -Wall -Wextra -Werror \
   -I"${ROOT_DIR}/firmware/stm32h747_disco" \
@@ -33,3 +34,15 @@ cc -std=c11 -Wall -Wextra -Werror \
   -o "${POLICY_OUT}"
 
 "${POLICY_OUT}"
+
+cc -std=c11 -Wall -Wextra -Werror \
+  -I"${ROOT_DIR}/firmware/stm32h747_disco" \
+  "${ROOT_DIR}/firmware/stm32h747_disco/rl_serial_protocol_v0.c" \
+  "${ROOT_DIR}/firmware/stm32h747_disco/rl_serial_transport_v0.c" \
+  "${ROOT_DIR}/firmware/stm32h747_disco/rl_policy_runtime_v0.c" \
+  "${ROOT_DIR}/firmware/stm32h747_disco/rl_control_loop_v0.c" \
+  "${ROOT_DIR}/firmware/stm32h747_disco/tests/rl_control_loop_v0_test.c" \
+  -lm \
+  -o "${CONTROL_LOOP_OUT}"
+
+"${CONTROL_LOOP_OUT}"
