@@ -84,6 +84,18 @@ int main(void) {
     return fail("external backend failure state mismatch");
   }
 
+  external.should_fail = 0;
+  external.calls = 0;
+  rl_policy_inference_v0_init_stedgeai(&inference, external_forward, &external);
+  if (!rl_policy_inference_v0_forward(observation, action, &inference)) {
+    return fail("stedgeai backend adapter failed");
+  }
+  if (inference.backend != RL_POLICY_INFERENCE_V0_BACKEND_STEDGEAI ||
+      external.calls != 1 ||
+      !almost_equal(action[7], 1.0f)) {
+    return fail("stedgeai backend adapter result mismatch");
+  }
+
   puts("stm32 rl_policy_inference_v0_test: PASS");
   return 0;
 }

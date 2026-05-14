@@ -53,6 +53,18 @@ void rl_policy_inference_v0_init_external(rl_policy_inference_v0_t *inference,
   inference->external_user_data = user_data;
 }
 
+void rl_policy_inference_v0_init_stedgeai(rl_policy_inference_v0_t *inference,
+                                          rl_policy_inference_v0_external_forward_fn forward,
+                                          void *user_data) {
+  if (inference == NULL) {
+    return;
+  }
+  memset(inference, 0, sizeof(*inference));
+  inference->backend = RL_POLICY_INFERENCE_V0_BACKEND_STEDGEAI;
+  inference->external_forward = forward;
+  inference->external_user_data = user_data;
+}
+
 int rl_policy_inference_v0_forward(const float observation[RL_POLICY_V0_OBSERVATION_DIM],
                                    float action[RL_POLICY_V0_ACTION_DIM],
                                    void *user_data) {
@@ -75,7 +87,8 @@ int rl_policy_inference_v0_forward(const float observation[RL_POLICY_V0_OBSERVAT
     return 1;
   }
 
-  if (inference->backend == RL_POLICY_INFERENCE_V0_BACKEND_EXTERNAL) {
+  if (inference->backend == RL_POLICY_INFERENCE_V0_BACKEND_EXTERNAL ||
+      inference->backend == RL_POLICY_INFERENCE_V0_BACKEND_STEDGEAI) {
     if (inference->external_forward == NULL) {
       inference->last_error = 1;
       zero_action(action);

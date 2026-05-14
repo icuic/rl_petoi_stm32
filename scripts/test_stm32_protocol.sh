@@ -39,6 +39,7 @@ cc -std=c11 -Wall -Wextra -Werror \
 cc -std=c11 -Wall -Wextra -Werror \
   -I"${ROOT_DIR}/firmware/stm32h747_disco" \
   "${ROOT_DIR}/firmware/stm32h747_disco/rl_policy_inference_v0.c" \
+  "${ROOT_DIR}/firmware/stm32h747_disco/rl_stedgeai_policy_v0.c" \
   "${ROOT_DIR}/firmware/stm32h747_disco/tests/rl_policy_inference_v0_test.c" \
   -lm \
   -o "${INFERENCE_OUT}"
