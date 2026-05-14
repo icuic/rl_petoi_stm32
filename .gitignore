@@ -31,6 +31,8 @@ models/reports/*.html
 assets/videos/*.mp4
 assets/videos/*.mov
 build/
+st_ai_ws/
+st_ai_output/
 
 # Fetched third-party robot descriptions and meshes
 third_party/petoi/ros_opencat/
