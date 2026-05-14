@@ -1,4 +1,5 @@
 #include "../rl_control_loop_v0.h"
+#include "../rl_policy_inference_v0.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -200,6 +201,36 @@ int main(void) {
       !almost_equal(runtime.phase, 10.0f / 120.0f) ||
       loop.has_cached_telemetry != 1) {
     return fail("step tick result mismatch");
+  }
+
+  memset(responses, 0, sizeof(responses));
+  responses_len = 0u;
+  memset(&io, 0, sizeof(io));
+  io.read_data = responses;
+  io.max_read_chunk = 6u;
+  rl_policy_inference_v0_t inference;
+  rl_policy_inference_v0_init_zero(&inference);
+  rl_serial_transport_v0_init(&transport, fake_write, fake_read, &io, (uint8_t)'Y', 25u);
+  rl_policy_runtime_v0_init(&runtime, NULL);
+  rl_control_loop_v0_init(&loop,
+                          &transport,
+                          &runtime,
+                          rl_policy_inference_v0_forward_fn(),
+                          &inference);
+  if (!append_hex(responses, sizeof(responses), &responses_len, get_state_resp_1) ||
+      !append_hex(responses, sizeof(responses), &responses_len, set_targets_resp_2)) {
+    return fail("failed to load inference-adapter responses");
+  }
+  io.read_len = responses_len;
+
+  if (rl_control_loop_v0_tick_get_state_set_targets(&loop, &result) != RL_CONTROL_LOOP_V0_OK) {
+    return fail("inference-adapter bring-up tick failed");
+  }
+  if (!expect_written(&io, expected_bringup) ||
+      !almost_equal(result.action[0], 0.0f) ||
+      !almost_equal(result.action[7], 0.0f) ||
+      !almost_equal(result.joint_targets[1], 1.52f)) {
+    return fail("inference-adapter bring-up result mismatch");
   }
 
   puts("stm32 rl_control_loop_v0_test: PASS");
