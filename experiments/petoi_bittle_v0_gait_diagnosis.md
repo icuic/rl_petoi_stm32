@@ -264,6 +264,78 @@ The next variant should keep the shoulder/action-scale change modest, reduce or
 remove the rear contact bonus, and preserve stronger progress pressure. The goal
 is to retain the lower rear slip without sacrificing deterministic distance.
 
+## Gait Quality v2 Follow-Up
+
+The second targeted follow-up made a more conservative change than v1:
+
+```text
+config: training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2.yaml
+init_model: current 10k best checkpoint
+total_timesteps: 50000
+selected_checkpoint: 30000 steps
+shoulder_amplitude: 0.09 rad
+knee_amplitude: 0.11 rad
+shoulder/hip action_scale: 0.07 rad
+knee/lower-leg action_scale: 0.055 rad
+progress: 550.0
+contact_slip: 0.08
+rear_contact_slip: 0.04
+front_contact_duty: 0.005
+rear_contact_bonus: 0.0
+```
+
+The 50k final checkpoint regressed, so the selected v2 checkpoint is:
+
+```text
+training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2_30000_steps.zip
+```
+
+Evaluation sweep:
+
+```text
+20k: distance_x_mean=1.2652 reward_mean=580.8205 fall_rate=0.0
+25k: distance_x_mean=1.3481 reward_mean=616.9945 fall_rate=0.0
+30k: distance_x_mean=1.4290 reward_mean=671.9641 fall_rate=0.0
+35k: distance_x_mean=1.0126 reward_mean=268.2616 fall_rate=0.0
+40k: distance_x_mean=0.9653 reward_mean=250.4575 fall_rate=0.0
+45k: distance_x_mean=0.8881 reward_mean=207.1325 fall_rate=0.0
+50k: distance_x_mean=0.1623 reward_mean=-233.2190 fall_rate=0.0
+```
+
+v2_30k diagnostics:
+
+```text
+video: assets/videos/petoi_bittle_v0_gait_quality_v2_30k_rollout_track.mp4
+eval: experiments/reports/petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2_30000_eval_5ep.json
+contact: experiments/reports/gait_contact_analysis/petoi_bittle_v0_gait_quality_v2_30k_5seed_contact_summary.json
+action: experiments/reports/action_analysis/petoi_bittle_v0_gait_quality_v2_30k_action_summary.json
+
+distance_x_mean: 1.4290 +/- 0.0102 m
+contact_slip_speed_mean: 0.1044 +/- 0.0008 m/s
+front_contact_duty_factor_mean: 0.6095 +/- 0.0054
+rear_contact_duty_factor_mean: 0.2229 +/- 0.0030
+front_contact_slip_speed_mean: 0.0778 +/- 0.0008 m/s
+rear_contact_slip_speed_mean: 0.1311 +/- 0.0021 m/s
+rear_to_front_contact_slip_ratio: 1.6867 +/- 0.0408
+knee_to_shoulder_action_abs_ratio: 0.9927
+```
+
+Interpretation:
+
+```text
+1. v2_30k is the best simulation candidate so far by deterministic distance.
+2. It modestly improves rear/front slip ratio versus the current candidate
+   (1.69x vs 1.81x), but not as much as v1.
+3. It does not improve rear contact duty; rear duty remains near the old
+   candidate (0.223 vs 0.222).
+4. The learned residual action is balanced between shoulder/hip and knee/lower
+   leg by normalized magnitude.
+5. The 50k final checkpoint must not be used; the run regressed after 30k.
+```
+
+v2_30k should be visually reviewed with the tracking-camera video before any
+ONNX export or STM32 rebuild.
+
 ## Recommended Next Experiments
 
 Before hardware deployment, try one or more simulation-only variants:

@@ -12,6 +12,7 @@ retraining:
 ```text
 training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0/final_model.zip
 training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue_10000_steps.zip
+training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2_30000_steps.zip
 models/onnx/petoi_bittle_v0_deployable_v0_best_actor.onnx
 models/reports/petoi_bittle_v0_deployable_v0_best_actor_onnx.json
 experiments/reports/checkpoint_eval/
@@ -25,6 +26,10 @@ docs/hardware_bringup_checklist.md
 The 10k continuation checkpoint is the current best policy candidate. The
 100k continuation `final_model.zip` should be backed up only as experiment
 evidence, not as the preferred deployment model.
+
+The gait_quality_v2 30k checkpoint is the current best simulation candidate
+under review. Keep it with its evaluation reports and tracking-camera video
+until it is either promoted to deployment or superseded.
 
 ## Useful To Keep
 

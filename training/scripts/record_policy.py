@@ -47,6 +47,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-steps", type=int, default=None, help="Maximum recorded steps.")
     parser.add_argument("--fps", type=int, default=50, help="Output video frame rate.")
     parser.add_argument(
+        "--camera",
+        choices=("track", "fixed"),
+        default="track",
+        help="Use a tracking camera by default so the robot remains visible.",
+    )
+    parser.add_argument("--track-body", default="bittle_base", help="Body name followed by --camera track.")
+    parser.add_argument("--camera-distance", type=float, default=0.7)
+    parser.add_argument("--camera-azimuth", type=float, default=90.0)
+    parser.add_argument("--camera-elevation", type=float, default=-25.0)
+    parser.add_argument(
         "--deterministic",
         action=argparse.BooleanOptionalAction,
         default=True,
@@ -99,6 +109,13 @@ def main() -> None:
         raise FileNotFoundError(f"Model not found: {model_path}")
 
     env = make_env(env_config)
+    if args.camera == "track":
+        env.set_render_camera(
+            track_body=args.track_body,
+            distance=args.camera_distance,
+            azimuth=args.camera_azimuth,
+            elevation=args.camera_elevation,
+        )
     model = None if args.zero_action else PPO.load(str(model_path), env=None, device=config.get("device", "auto"))
     obs, _ = env.reset(seed=seed)
 
@@ -132,6 +149,7 @@ def main() -> None:
 
     print(f"Saved rollout video to {args.output}")
     print(f"policy_mode={'zero_action' if args.zero_action else 'ppo'}")
+    print(f"camera={args.camera}")
     print(f"steps={steps} reward={total_reward:.3f} termination_reason={termination_reason}")
     if bool(eval_config.get("deterministic", True)) != deterministic:
         print(f"note: config evaluation.deterministic={eval_config.get('deterministic')} but recording used {deterministic}")

@@ -215,6 +215,20 @@ def test_deployable_observation_mode_uses_robot_available_signals():
     env.close()
 
 
+def test_tracking_render_camera_can_be_configured():
+    env = SimpleQuadrupedEnv(
+        model_path="build/petoi_bittle/petoi_bittle_v0.xml",
+        render_mode="rgb_array",
+    )
+    env.reset(seed=7)
+    env.set_render_camera(track_body="bittle_base", distance=0.7, azimuth=90.0, elevation=-25.0)
+
+    assert env.render_camera is not None
+    assert env.render_camera.trackbodyid > 0
+
+    env.close()
+
+
 def test_reset_and_reward_config_are_applied():
     env = SimpleQuadrupedEnv(
         model_path="sim/robots/bittle_like_v0.xml",

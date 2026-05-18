@@ -20,6 +20,49 @@ training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue.y
 The deployed ONNX and STM32 M7 smoke ELF were regenerated from this 10k
 checkpoint.
 
+## Best Simulation Candidate Under Review
+
+The first gait-quality run regressed forward progress, but the second run found
+a better early checkpoint. This candidate is promising in simulation, but it has
+not replaced the deployable ONNX/STM32 artifacts yet:
+
+```text
+config: training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2.yaml
+checkpoint: training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2_30000_steps.zip
+video: assets/videos/petoi_bittle_v0_gait_quality_v2_30k_rollout_track.mp4
+eval: experiments/reports/petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2_30000_eval_5ep.json
+contact: experiments/reports/gait_contact_analysis/petoi_bittle_v0_gait_quality_v2_30k_5seed_contact_summary.json
+action: experiments/reports/action_analysis/petoi_bittle_v0_gait_quality_v2_30k_action_summary.json
+```
+
+5-episode deterministic evaluation:
+
+```text
+reward_mean: 671.9641
+distance_x_mean: 1.4290
+distance_x_std: 0.0102
+fall_rate: 0.0
+termination_reason_counts: timeout=5
+```
+
+Contact/action diagnostics:
+
+```text
+contact_slip_speed_mean: 0.1044 m/s
+front_contact_duty_factor_mean: 0.6095
+rear_contact_duty_factor_mean: 0.2229
+front_contact_slip_speed_mean: 0.0778 m/s
+rear_contact_slip_speed_mean: 0.1311 m/s
+rear_to_front_contact_slip_ratio: 1.6867
+knee_to_shoulder_action_abs_ratio: 0.9927
+```
+
+Compared with the current deployable candidate, v2_30k improves deterministic
+distance (`1.429 m` vs `1.267 m`) and slightly improves rear/front slip ratio
+(`1.69x` vs `1.81x`). It does not improve rear contact duty like v1 did. Treat
+v2_30k as the next simulation candidate to inspect visually and evaluate more
+deeply before exporting ONNX or rebuilding STM32 artifacts.
+
 ## Evaluation Summary
 
 Checkpoint selection report:
@@ -132,14 +175,17 @@ This v1 run improved rear/front slip balance versus the current candidate
 (`1.44x` vs `1.81x`) and increased rear contact duty (`0.289` vs `0.222`), but
 it reduced and destabilized forward progress. Treat it as useful evidence for
 the next reward/control iteration, not as the new deployable candidate.
+- Video recording now uses a tracking camera by default, so the robot remains
+  visible after walking forward. Use `--camera fixed` when an old fixed-scene
+  comparison is needed.
 
 ## Suggested Next Checks
 
-1. Inspect the current candidate video and the gait_quality_v1 video side by
+1. Inspect the current candidate video and the v2_30k tracking video side by
    side.
-2. Create a gait_quality_v2 variant that keeps the slip/contact improvements
-   while restoring forward progress.
-3. Run a longer deterministic evaluation, such as 30 or 50 episodes, only after
-   a candidate beats the current 5-episode baseline.
-4. Do not update ONNX or STM32 artifacts until a new candidate improves both
-   progress and gait-quality diagnostics.
+2. Run a longer deterministic evaluation, such as 30 or 50 episodes, for
+   v2_30k.
+3. If v2_30k passes visual review and longer evaluation, export ONNX and rebuild
+   the STM32 smoke ELF from that checkpoint.
+4. If visual quality is still poor, try a v3 run with explicit rear contact duty
+   shaping without the v1 rear-contact bonus.

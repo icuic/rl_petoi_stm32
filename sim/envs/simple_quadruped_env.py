@@ -58,6 +58,7 @@ class SimpleQuadrupedEnv(gym.Env):
         self.frame_skip = frame_skip
         self.episode_steps = episode_steps
         self.render_mode = render_mode
+        self.render_camera = None
         self.step_count = 0
         self.phase = 0.0
         self.previous_x_position = 0.0
@@ -221,12 +222,36 @@ class SimpleQuadrupedEnv(gym.Env):
         }
         return obs, reward, terminated, truncated, info
 
+    def set_render_camera(
+        self,
+        *,
+        track_body: str | None = None,
+        distance: float = 0.7,
+        azimuth: float = 90.0,
+        elevation: float = -25.0,
+    ) -> None:
+        if track_body is None:
+            self.render_camera = None
+            return
+
+        body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, track_body)
+        if body_id < 0:
+            raise ValueError(f"Body not found for render camera tracking: {track_body}")
+        camera = mujoco.MjvCamera()
+        camera.type = mujoco.mjtCamera.mjCAMERA_TRACKING
+        camera.trackbodyid = int(body_id)
+        camera.distance = float(distance)
+        camera.azimuth = float(azimuth)
+        camera.elevation = float(elevation)
+        camera.lookat[:] = self.data.xpos[body_id]
+        self.render_camera = camera
+
     def render(self):
         if self.render_mode != "rgb_array":
             return None
         if self._renderer is None:
             self._renderer = mujoco.Renderer(self.model, width=640, height=480)
-        self._renderer.update_scene(self.data)
+        self._renderer.update_scene(self.data, camera=self.render_camera if self.render_camera is not None else -1)
         return self._renderer.render()
 
     def close(self) -> None:
