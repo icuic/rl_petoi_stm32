@@ -15,7 +15,10 @@ training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_contin
 models/onnx/petoi_bittle_v0_deployable_v0_best_actor.onnx
 models/reports/petoi_bittle_v0_deployable_v0_best_actor_onnx.json
 experiments/reports/checkpoint_eval/
+experiments/reports/action_analysis/
 assets/videos/
+experiments/petoi_bittle_v0_gait_diagnosis.md
+docs/hardware_bringup_checklist.md
 ```
 
 The 10k continuation checkpoint is the current best policy candidate. The

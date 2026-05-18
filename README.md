@@ -8,6 +8,33 @@
 - 边缘推理板：STM32H747（[STM32H747I-DISCO](https://www.st.com/en/evaluation-tools/stm32h747i-disco.html)），策略以 **MCU 常驻推理** 为叙事核心。
 - 运动控制开源背景：Petoi **OpenCat** 相关栈（固件与协议在具体联调阶段再对齐）。
 
+## Current Status
+
+当前仓库已推进到 **deployable_v0 策略候选 + STM32H747 M7 smoke ELF** 阶段，但暂不建议直接部署到真机。实物 Bittle X V2 到手前，当前重点是仿真 gait 质量诊断，尤其确认策略是否过度依赖小腿动作、髋/大腿动作是否不足。
+
+- 当前推荐训练配置：`training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue.yaml`
+- 当前推荐 checkpoint：`training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue_10000_steps.zip`
+- 不推荐使用：`training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue/final_model.zip`，该 100k continuation final 在评估中明显退化。
+- 当前 best 评估：5 episode deterministic，`reward_mean=562.0475`，`distance_x_mean=1.2671m`，`fall_rate=0.0`。
+- 当前 ONNX：`models/onnx/petoi_bittle_v0_deployable_v0_best_actor.onnx`
+- 当前 STM32 ELF：`build/stm32h747_m7_inference_smoke/m7_inference_smoke.elf`
+- 当前 rollout 视频：`assets/videos/petoi_bittle_v0_deployable_v0_10k_rollout.mp4`
+- 状态详情见：`docs/training_status.md`
+- Gait 诊断见：`experiments/petoi_bittle_v0_gait_diagnosis.md`
+- 硬件到手前 checklist：`docs/hardware_bringup_checklist.md`
+- 里程碑备份见：`docs/artifact_backup.md` 和 `scripts/pack_artifacts.sh`
+
+常用检查命令：
+
+```bash
+bash scripts/select_checkpoint.sh 'experiments/reports/checkpoint_eval/*.json' --min-episodes 5
+bash scripts/record_eval.sh training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue.yaml \
+  --model training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue_10000_steps.zip \
+  --output assets/videos/petoi_bittle_v0_deployable_v0_10k_rollout.mp4
+bash scripts/analyze_policy_actions.sh training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue.yaml
+bash scripts/pack_artifacts.sh
+```
+
 ## 仿真与模型
 
 - **仿真**：**MuJoCo**（配套 Gymnasium 等），不强制初版即几何 1:1 Bittle。

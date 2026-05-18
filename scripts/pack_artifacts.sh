@@ -69,10 +69,14 @@ required_paths=(
   "models/onnx/petoi_bittle_v0_deployable_v0_best_actor.onnx"
   "models/reports/petoi_bittle_v0_deployable_v0_best_actor_onnx.json"
   "experiments/reports/checkpoint_eval"
+  "experiments/reports/action_analysis"
   "assets/videos/petoi_bittle_v0_deployable_v0_10k_rollout.mp4"
   "firmware/stm32h747_disco/test_vectors/deployable_v0_policy_vector.json"
+  "README.md"
   "docs/training_status.md"
   "docs/artifact_backup.md"
+  "docs/hardware_bringup_checklist.md"
+  "experiments/petoi_bittle_v0_gait_diagnosis.md"
 )
 
 optional_paths=(
