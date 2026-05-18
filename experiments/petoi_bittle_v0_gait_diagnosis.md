@@ -41,6 +41,7 @@ Contact/clearance analysis:
 
 ```text
 experiments/reports/gait_contact_analysis/petoi_bittle_v0_deployable_v0_10k_contact_summary.json
+experiments/reports/gait_contact_analysis/petoi_bittle_v0_deployable_v0_10k_5seed_contact_summary.json
 experiments/reports/gait_contact_analysis/petoi_bittle_v0_deployable_v0_10k_foot_heights.png
 experiments/reports/gait_contact_analysis/petoi_bittle_v0_deployable_v0_10k_foot_xy_speed.png
 experiments/reports/gait_contact_analysis/petoi_bittle_v0_deployable_v0_10k_contact_raster.png
@@ -174,6 +175,31 @@ This is a better grounded concern than simply saying the gait "looks odd".
 The next reward/control iteration should consider foot slip, contact timing,
 and rear-leg contribution before hardware deployment.
 
+Multi-seed confirmation:
+
+```text
+rollouts: 5 deterministic
+seeds: 37, 38, 39, 40, 41
+termination_reasons: timeout=5
+reward_mean: 562.0475 +/- 8.0948
+distance_x_mean: 1.2671 +/- 0.0094 m
+contact_duty_factor_mean: 0.4077 +/- 0.0033
+contact_slip_speed_mean: 0.1055 +/- 0.0007 m/s
+swing_height_mean: 0.0375 +/- 0.0000 m
+base_roll_abs_mean: 0.0273 +/- 0.0000 rad
+base_pitch_abs_mean: 0.0307 +/- 0.0001 rad
+front_contact_duty_factor_mean: 0.5932 +/- 0.0064
+rear_contact_duty_factor_mean: 0.2223 +/- 0.0013
+front_contact_slip_speed_mean: 0.0750 +/- 0.0004 m/s
+rear_contact_slip_speed_mean: 0.1361 +/- 0.0016 m/s
+rear_to_front_contact_slip_ratio: 1.8137 +/- 0.0274
+```
+
+The front-heavy support pattern and higher rear-leg contact slip are stable
+across these seeds. The strongest next experiment is therefore not another
+blind continuation run; it is a targeted gait-quality variant that changes the
+reference/control balance and adds explicit pressure against dragging/sliding.
+
 ## Recommended Next Experiments
 
 Before hardware deployment, try one or more simulation-only variants:
@@ -184,8 +210,7 @@ Before hardware deployment, try one or more simulation-only variants:
 3. Add a reward or diagnostic for hip/shoulder target amplitude.
 4. Add foot contact or foot clearance terms if contact data is available.
 5. Record side-view videos for each candidate, not only numeric evaluation.
-6. Penalize high contact slip or asymmetric contact duty if confirmed across
-   more seeds.
+6. Penalize high contact slip or asymmetric contact duty.
 ```
 
 Deployment should wait until the gait is visually acceptable, because the

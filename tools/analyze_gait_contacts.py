@@ -49,6 +49,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", type=Path, default=Path(DEFAULT_MODEL))
     parser.add_argument("--steps", type=int, default=1000)
     parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument(
+        "--episodes",
+        type=int,
+        default=1,
+        help="Number of deterministic rollouts to analyze. Seeds increment from --seed or the config seed.",
+    )
+    parser.add_argument(
+        "--seeds",
+        default=None,
+        help="Comma-separated rollout seeds. Overrides --episodes when provided.",
+    )
     parser.add_argument("--output-dir", type=Path, default=Path("experiments/reports/gait_contact_analysis"))
     parser.add_argument("--prefix", default="petoi_bittle_v0_deployable_v0_10k")
     parser.add_argument("--deterministic", action=argparse.BooleanOptionalAction, default=True)
@@ -130,47 +141,98 @@ def summarize_leg(heights: np.ndarray, contacts: np.ndarray, slip_speeds: np.nda
     }
 
 
-def plot_leg_series(x: np.ndarray, series: dict[str, np.ndarray], title: str, ylabel: str, output: Path) -> None:
-    fig, axis = plt.subplots(figsize=(12, 5))
-    for leg, values in series.items():
-        axis.plot(x, values, label=leg, linewidth=1.1)
-    axis.set_title(title)
-    axis.set_xlabel("step")
-    axis.set_ylabel(ylabel)
-    axis.grid(True, alpha=0.3)
-    axis.legend(ncol=2)
-    fig.tight_layout()
-    fig.savefig(output, dpi=160)
-    plt.close(fig)
+def summarize_front_rear(leg_summary: dict[str, dict[str, float]]) -> dict[str, float]:
+    front_legs = ("right_front", "left_front")
+    rear_legs = ("right_rear", "left_rear")
+    front_duty = np.asarray([leg_summary[leg]["contact_duty_factor"] for leg in front_legs], dtype=np.float64)
+    rear_duty = np.asarray([leg_summary[leg]["contact_duty_factor"] for leg in rear_legs], dtype=np.float64)
+    front_slip = np.asarray([leg_summary[leg]["contact_slip_speed_mean_m_s"] for leg in front_legs], dtype=np.float64)
+    rear_slip = np.asarray([leg_summary[leg]["contact_slip_speed_mean_m_s"] for leg in rear_legs], dtype=np.float64)
+    front_slip_mean = float(np.mean(front_slip))
+    rear_slip_mean = float(np.mean(rear_slip))
+    return {
+        "front_contact_duty_factor_mean": float(np.mean(front_duty)),
+        "rear_contact_duty_factor_mean": float(np.mean(rear_duty)),
+        "front_contact_slip_speed_mean_m_s": front_slip_mean,
+        "rear_contact_slip_speed_mean_m_s": rear_slip_mean,
+        "rear_to_front_contact_slip_ratio": rear_slip_mean / front_slip_mean if front_slip_mean > 0.0 else float("inf"),
+    }
 
 
-def plot_contact_raster(x: np.ndarray, contacts: dict[str, np.ndarray], output: Path) -> None:
-    fig, axis = plt.subplots(figsize=(12, 4))
-    labels = list(contacts)
-    for row, leg in enumerate(labels):
-        active = contacts[leg] > 0.5
-        axis.fill_between(x, row, row + 0.8, where=active, step="pre", alpha=0.7)
-    axis.set_yticks(np.arange(len(labels)) + 0.4)
-    axis.set_yticklabels(labels)
-    axis.set_xlabel("step")
-    axis.set_title("Foot Contact Raster")
-    axis.grid(True, axis="x", alpha=0.25)
-    fig.tight_layout()
-    fig.savefig(output, dpi=160)
-    plt.close(fig)
+def parse_seed_list(seed_arg: str | None, base_seed: int, episodes: int) -> list[int]:
+    if seed_arg:
+        seeds = [int(value.strip()) for value in seed_arg.split(",") if value.strip()]
+        if not seeds:
+            raise ValueError("--seeds must contain at least one integer seed")
+        return seeds
+    if episodes < 1:
+        raise ValueError("--episodes must be >= 1")
+    return [base_seed + offset for offset in range(episodes)]
 
 
-def main() -> None:
-    args = parse_args()
-    config = load_config(args.config)
-    seed = args.seed if args.seed is not None else int(config.get("seed", 0))
-    env_config = config.get("env", {})
+def mean_std(values: list[float]) -> dict[str, float]:
+    array = np.asarray(values, dtype=np.float64)
+    return {"mean": float(np.mean(array)), "std": float(np.std(array))}
 
-    if not args.model.exists():
-        raise FileNotFoundError(f"Model not found: {args.model}")
 
+def aggregate_rollouts(summaries: list[dict[str, Any]]) -> dict[str, Any]:
+    scalar_paths = {
+        "reward": ("reward",),
+        "distance_x": ("distance_x",),
+        "contact_duty_factor_mean": ("aggregate", "contact_duty_factor_mean"),
+        "contact_duty_factor_std": ("aggregate", "contact_duty_factor_std"),
+        "contact_slip_speed_mean_m_s": ("aggregate", "contact_slip_speed_mean_m_s"),
+        "swing_height_mean_m": ("aggregate", "swing_height_mean_m"),
+        "base_height_mean_m": ("aggregate", "base_height_mean_m"),
+        "base_roll_abs_mean_rad": ("aggregate", "base_roll_abs_mean_rad"),
+        "base_pitch_abs_mean_rad": ("aggregate", "base_pitch_abs_mean_rad"),
+        "front_contact_duty_factor_mean": ("front_rear", "front_contact_duty_factor_mean"),
+        "rear_contact_duty_factor_mean": ("front_rear", "rear_contact_duty_factor_mean"),
+        "front_contact_slip_speed_mean_m_s": ("front_rear", "front_contact_slip_speed_mean_m_s"),
+        "rear_contact_slip_speed_mean_m_s": ("front_rear", "rear_contact_slip_speed_mean_m_s"),
+        "rear_to_front_contact_slip_ratio": ("front_rear", "rear_to_front_contact_slip_ratio"),
+    }
+
+    aggregate: dict[str, Any] = {
+        "episodes": len(summaries),
+        "seeds": [int(summary["seed"]) for summary in summaries],
+        "metrics": {},
+        "per_leg": {},
+        "termination_reasons": {},
+    }
+    for summary in summaries:
+        reason = str(summary["termination_reason"])
+        aggregate["termination_reasons"][reason] = aggregate["termination_reasons"].get(reason, 0) + 1
+
+    for name, path in scalar_paths.items():
+        values = []
+        for summary in summaries:
+            value: Any = summary
+            for key in path:
+                value = value[key]
+            values.append(float(value))
+        aggregate["metrics"][name] = mean_std(values)
+
+    for leg in LEG_GEOMS:
+        aggregate["per_leg"][leg] = {}
+        for metric in (
+            "contact_duty_factor",
+            "swing_height_mean_m",
+            "contact_slip_speed_mean_m_s",
+            "contact_slip_speed_p95_m_s",
+        ):
+            aggregate["per_leg"][leg][metric] = mean_std([float(summary["legs"][leg][metric]) for summary in summaries])
+
+    return aggregate
+
+
+def run_rollout(
+    args: argparse.Namespace,
+    env_config: dict[str, Any],
+    model: PPO,
+    seed: int,
+) -> tuple[dict[str, Any], dict[str, np.ndarray], dict[str, np.ndarray], dict[str, np.ndarray], np.ndarray, np.ndarray, np.ndarray]:
     env = make_env(env_config)
-    model = PPO.load(str(args.model), env=None, device="cpu")
     obs, _ = env.reset(seed=seed)
 
     floor_id = geom_id(env.model, "floor")
@@ -252,6 +314,7 @@ def main() -> None:
         "contact_height_threshold_m": args.contact_height_threshold,
         "leg_geoms": LEG_GEOMS,
         "legs": leg_summary,
+        "front_rear": summarize_front_rear(leg_summary),
         "aggregate": {
             "contact_duty_factor_mean": float(np.mean(contact_duties)),
             "contact_duty_factor_std": float(np.std(contact_duties)),
@@ -268,37 +331,109 @@ def main() -> None:
             "note": "High contact slip with low swing clearance suggests dragging or sliding instead of clean stepping.",
         },
     }
+    return summary, height_arrays, contact_arrays, slip_arrays, roll_array, pitch_array, np.asarray(rewards, dtype=np.float64)
+
+
+def plot_leg_series(x: np.ndarray, series: dict[str, np.ndarray], title: str, ylabel: str, output: Path) -> None:
+    fig, axis = plt.subplots(figsize=(12, 5))
+    for leg, values in series.items():
+        axis.plot(x, values, label=leg, linewidth=1.1)
+    axis.set_title(title)
+    axis.set_xlabel("step")
+    axis.set_ylabel(ylabel)
+    axis.grid(True, alpha=0.3)
+    axis.legend(ncol=2)
+    fig.tight_layout()
+    fig.savefig(output, dpi=160)
+    plt.close(fig)
+
+
+def plot_contact_raster(x: np.ndarray, contacts: dict[str, np.ndarray], output: Path) -> None:
+    fig, axis = plt.subplots(figsize=(12, 4))
+    labels = list(contacts)
+    for row, leg in enumerate(labels):
+        active = contacts[leg] > 0.5
+        axis.fill_between(x, row, row + 0.8, where=active, step="pre", alpha=0.7)
+    axis.set_yticks(np.arange(len(labels)) + 0.4)
+    axis.set_yticklabels(labels)
+    axis.set_xlabel("step")
+    axis.set_title("Foot Contact Raster")
+    axis.grid(True, axis="x", alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(output, dpi=160)
+    plt.close(fig)
+
+
+def main() -> None:
+    args = parse_args()
+    config = load_config(args.config)
+    base_seed = args.seed if args.seed is not None else int(config.get("seed", 0))
+    seeds = parse_seed_list(args.seeds, base_seed, args.episodes)
+    env_config = config.get("env", {})
+
+    if not args.model.exists():
+        raise FileNotFoundError(f"Model not found: {args.model}")
+
+    model = PPO.load(str(args.model), env=None, device="cpu")
+    rollout_results = [run_rollout(args, env_config, model, seed) for seed in seeds]
+    summaries = [result[0] for result in rollout_results]
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     summary_path = args.output_dir / f"{args.prefix}_contact_summary.json"
+    summary: dict[str, Any]
+    if len(summaries) == 1:
+        summary = summaries[0]
+    else:
+        summary = {
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "config": str(args.config),
+            "model": str(args.model),
+            "deterministic": args.deterministic,
+            "steps_requested": args.steps,
+            "contact_height_threshold_m": args.contact_height_threshold,
+            "leg_geoms": LEG_GEOMS,
+            "rollouts": summaries,
+            "aggregate_across_rollouts": aggregate_rollouts(summaries),
+            "diagnostics": {
+                "note": "Use aggregate_across_rollouts to confirm whether contact timing and slip patterns are seed-stable.",
+            },
+        }
     with summary_path.open("w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
         f.write("\n")
 
+    first_summary, height_arrays, contact_arrays, slip_arrays, roll_array, pitch_array, rewards = rollout_results[0]
+    plot_prefix = args.prefix if len(summaries) == 1 else f"{args.prefix}_seed{first_summary['seed']}"
     step_axis = np.arange(len(rewards))
-    plot_leg_series(step_axis, height_arrays, "Shank Geom Height", "height above floor (m)", args.output_dir / f"{args.prefix}_foot_heights.png")
-    plot_leg_series(step_axis, slip_arrays, "Shank XY Speed", "speed (m/s)", args.output_dir / f"{args.prefix}_foot_xy_speed.png")
-    plot_contact_raster(step_axis, contact_arrays, args.output_dir / f"{args.prefix}_contact_raster.png")
+    plot_leg_series(step_axis, height_arrays, "Shank Geom Height", "height above floor (m)", args.output_dir / f"{plot_prefix}_foot_heights.png")
+    plot_leg_series(step_axis, slip_arrays, "Shank XY Speed", "speed (m/s)", args.output_dir / f"{plot_prefix}_foot_xy_speed.png")
+    plot_contact_raster(step_axis, contact_arrays, args.output_dir / f"{plot_prefix}_contact_raster.png")
     plot_leg_series(
         step_axis,
         {"roll": roll_array, "pitch": pitch_array},
         "Base Roll/Pitch",
         "rad",
-        args.output_dir / f"{args.prefix}_base_attitude.png",
+        args.output_dir / f"{plot_prefix}_base_attitude.png",
     )
 
     print(json.dumps({
         "summary": str(summary_path),
-        "steps": summary["steps"],
-        "reward": summary["reward"],
-        "distance_x": summary["distance_x"],
-        "termination_reason": termination_reason,
-        "aggregate": summary["aggregate"],
+        "rollouts": len(summaries),
+        "seeds": seeds,
+        "first_rollout": {
+            "steps": first_summary["steps"],
+            "reward": first_summary["reward"],
+            "distance_x": first_summary["distance_x"],
+            "termination_reason": first_summary["termination_reason"],
+            "aggregate": first_summary["aggregate"],
+            "front_rear": first_summary["front_rear"],
+        },
+        "aggregate_across_rollouts": summary.get("aggregate_across_rollouts"),
         "plots": [
-            str(args.output_dir / f"{args.prefix}_foot_heights.png"),
-            str(args.output_dir / f"{args.prefix}_foot_xy_speed.png"),
-            str(args.output_dir / f"{args.prefix}_contact_raster.png"),
-            str(args.output_dir / f"{args.prefix}_base_attitude.png"),
+            str(args.output_dir / f"{plot_prefix}_foot_heights.png"),
+            str(args.output_dir / f"{plot_prefix}_foot_xy_speed.png"),
+            str(args.output_dir / f"{plot_prefix}_contact_raster.png"),
+            str(args.output_dir / f"{plot_prefix}_base_attitude.png"),
         ],
     }, indent=2))
 
