@@ -4,6 +4,9 @@ set -uo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENV_DIR="${ROOT_DIR}/.venv"
 
+export MPLCONFIGDIR="${MPLCONFIGDIR:-${ROOT_DIR}/.cache/matplotlib}"
+mkdir -p "${MPLCONFIGDIR}"
+
 ok() {
   printf '[ OK ] %s\n' "$*"
 }

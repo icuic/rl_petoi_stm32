@@ -5,6 +5,9 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENV_DIR="${ROOT_DIR}/.venv"
 PYTHON_BIN="${PYTHON_BIN:-python3.9}"
 
+export MPLCONFIGDIR="${MPLCONFIGDIR:-${ROOT_DIR}/.cache/matplotlib}"
+mkdir -p "${MPLCONFIGDIR}"
+
 log() {
   printf '\n[%s] %s\n' "$(date '+%H:%M:%S')" "$*"
 }
