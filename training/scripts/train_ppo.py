@@ -108,15 +108,20 @@ def main() -> None:
         init_model_path = Path(init_model)
         if not init_model_path.exists():
             raise FileNotFoundError(f"Initial model not found: {init_model_path}")
+        custom_objects = {key: value for key, value in ppo_config.items() if key != "policy_kwargs"}
         model = PPO.load(
             str(init_model_path),
             env=env,
             device=config.get("device", "auto"),
+            custom_objects=custom_objects,
             tensorboard_log=str(log_dir),
             seed=seed,
             verbose=1,
         )
         print(f"Loaded initial model from {init_model_path}")
+        if custom_objects:
+            overridden = ", ".join(sorted(custom_objects))
+            print(f"Overrode PPO settings from config: {overridden}")
     else:
         model = PPO(
             policy="MlpPolicy",

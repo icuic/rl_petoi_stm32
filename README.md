@@ -19,6 +19,7 @@
 - 当前 ONNX：`models/onnx/petoi_bittle_v0_deployable_v0_best_actor.onnx`
 - 当前 STM32 ELF：`build/stm32h747_m7_inference_smoke/m7_inference_smoke.elf`
 - 当前 rollout 视频：`assets/videos/petoi_bittle_v0_deployable_v0_10k_rollout.mp4`
+- 已完成 gait_quality_v1 诊断实验：后腿滑移比例有所改善，但前进距离退化，因此它不是新的部署候选；详见 `experiments/petoi_bittle_v0_gait_diagnosis.md`。
 - 状态详情见：`docs/training_status.md`
 - Gait 诊断见：`experiments/petoi_bittle_v0_gait_diagnosis.md`
 - 硬件到手前 checklist：`docs/hardware_bringup_checklist.md`

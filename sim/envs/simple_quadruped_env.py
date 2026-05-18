@@ -20,6 +20,16 @@ from sim.envs.simple_quadruped_interface import (
 )
 
 
+FOOT_CONTACT_GEOMS = {
+    "right_front": "shank_rf_1_collision_0",
+    "right_rear": "shank_rr_1_collision_0",
+    "left_front": "shank_lf_1_collision_0",
+    "left_rear": "shank_lr_1_collision_0",
+}
+REAR_LEGS = ("right_rear", "left_rear")
+FRONT_LEGS = ("right_front", "left_front")
+
+
 class SimpleQuadrupedEnv(gym.Env):
     """A small 8-DoF quadruped controlled by normalized joint targets."""
 
@@ -53,6 +63,9 @@ class SimpleQuadrupedEnv(gym.Env):
         self.previous_x_position = 0.0
         self._renderer: mujoco.Renderer | None = None
         self.previous_action = np.zeros(8, dtype=np.float32)
+        self.previous_foot_xy = np.zeros((len(FOOT_CONTACT_GEOMS), 2), dtype=np.float64)
+        self.foot_geom_ids = self._resolve_optional_geom_ids(FOOT_CONTACT_GEOMS.values())
+        self.floor_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
         self.reset_config = {
             "torso_height": 0.22,
             "joint_noise": 0.02,
@@ -83,6 +96,10 @@ class SimpleQuadrupedEnv(gym.Env):
             "action_delta": 0.001,
             "drift": 0.0,
             "fall": 0.2,
+            "contact_slip": 0.0,
+            "rear_contact_slip": 0.0,
+            "front_contact_duty": 0.0,
+            "rear_contact_bonus": 0.0,
         }
         if reward_config:
             self.reward_config.update({key: float(value) for key, value in reward_config.items()})
@@ -151,6 +168,7 @@ class SimpleQuadrupedEnv(gym.Env):
         self.data.ctrl[self.actuator_ctrl_addr] = reset_pose
         mujoco.mj_forward(self.model, self.data)
         self.previous_x_position = float(self.data.qpos[0])
+        self.previous_foot_xy = self._foot_xy_positions()
 
         return self._get_obs(), {"phase": self.phase, "control_mode": self.control_mode, "observation_mode": self.observation_mode}
 
@@ -164,6 +182,7 @@ class SimpleQuadrupedEnv(gym.Env):
         mujoco.mj_step(self.model, self.data, nstep=self.frame_skip)
         x_position = float(self.data.qpos[0])
         x_progress = x_position - previous_x_position
+        foot_quality = self._get_foot_quality_terms()
 
         self.step_count += 1
         phase_delta = self.frame_skip / self.gait_period_steps if self.control_mode == "residual_trot" else 1.0 / self.gait_period_steps
@@ -180,9 +199,11 @@ class SimpleQuadrupedEnv(gym.Env):
             health=health,
             terminated=terminated,
             x_progress=x_progress,
+            foot_quality=foot_quality,
         )
         self.previous_action = action.copy()
         self.previous_x_position = x_position
+        self.previous_foot_xy = self._foot_xy_positions()
         obs = self._get_obs()
         info = {
             "x_position": x_position,
@@ -196,6 +217,7 @@ class SimpleQuadrupedEnv(gym.Env):
             "observation_mode": self.observation_mode,
             "termination_reason": termination_reason,
             "reward_terms": reward_terms,
+            "foot_quality": foot_quality,
         }
         return obs, reward, terminated, truncated, info
 
@@ -261,6 +283,7 @@ class SimpleQuadrupedEnv(gym.Env):
         health: dict[str, float | str],
         terminated: bool,
         x_progress: float,
+        foot_quality: dict[str, float],
     ) -> tuple[float, dict[str, float]]:
         weights = self.reward_config
         roll = float(health["roll"])
@@ -286,6 +309,10 @@ class SimpleQuadrupedEnv(gym.Env):
             "action_delta_penalty": weights["action_delta"] * float(np.square(action_delta).sum()),
             "drift_penalty": weights["drift"] * float(self.data.qpos[1] * self.data.qpos[1]),
             "fall_penalty": weights["fall"] if terminated else 0.0,
+            "contact_slip_penalty": weights["contact_slip"] * foot_quality["contact_slip_speed_sum"],
+            "rear_contact_slip_penalty": weights["rear_contact_slip"] * foot_quality["rear_contact_slip_speed_sum"],
+            "front_contact_duty_penalty": weights["front_contact_duty"] * foot_quality["front_contact_count"],
+            "rear_contact_bonus": weights["rear_contact_bonus"] * foot_quality["rear_contact_count"],
         }
         reward = (
             terms["survival"]
@@ -305,8 +332,55 @@ class SimpleQuadrupedEnv(gym.Env):
             - terms["action_delta_penalty"]
             - terms["drift_penalty"]
             - terms["fall_penalty"]
+            - terms["contact_slip_penalty"]
+            - terms["rear_contact_slip_penalty"]
+            - terms["front_contact_duty_penalty"]
+            + terms["rear_contact_bonus"]
         )
         return float(reward), terms
+
+    def _get_foot_quality_terms(self) -> dict[str, float]:
+        if self.floor_geom_id < 0 or any(geom_id < 0 for geom_id in self.foot_geom_ids):
+            return {
+                "contact_slip_speed_sum": 0.0,
+                "rear_contact_slip_speed_sum": 0.0,
+                "front_contact_count": 0.0,
+                "rear_contact_count": 0.0,
+            }
+
+        contacts = self._foot_contacts()
+        foot_xy = self._foot_xy_positions()
+        dt = float(self.model.opt.timestep * self.frame_skip)
+        foot_xy_speed = np.linalg.norm(foot_xy - self.previous_foot_xy, axis=1) / dt
+        contact_slip_speed = foot_xy_speed * contacts
+        leg_names = tuple(FOOT_CONTACT_GEOMS)
+        rear_indices = [leg_names.index(leg) for leg in REAR_LEGS]
+        front_indices = [leg_names.index(leg) for leg in FRONT_LEGS]
+        return {
+            "contact_slip_speed_sum": float(np.sum(contact_slip_speed)),
+            "rear_contact_slip_speed_sum": float(np.sum(contact_slip_speed[rear_indices])),
+            "front_contact_count": float(np.sum(contacts[front_indices])),
+            "rear_contact_count": float(np.sum(contacts[rear_indices])),
+        }
+
+    def _foot_contacts(self) -> np.ndarray:
+        contacts = np.zeros(len(self.foot_geom_ids), dtype=np.float64)
+        for contact_idx in range(self.data.ncon):
+            contact = self.data.contact[contact_idx]
+            pair = {int(contact.geom1), int(contact.geom2)}
+            if self.floor_geom_id not in pair:
+                continue
+            for idx, geom_id in enumerate(self.foot_geom_ids):
+                if geom_id in pair:
+                    contacts[idx] = 1.0
+        return contacts
+
+    def _foot_xy_positions(self) -> np.ndarray:
+        positions = np.zeros((len(self.foot_geom_ids), 2), dtype=np.float64)
+        for idx, geom_id in enumerate(self.foot_geom_ids):
+            if geom_id >= 0:
+                positions[idx] = self.data.geom_xpos[geom_id, :2]
+        return positions
 
     def _get_health(self) -> dict[str, float | str]:
         height = float(self.data.qpos[2])
@@ -352,6 +426,12 @@ class SimpleQuadrupedEnv(gym.Env):
                 raise ValueError(f"Actuator not found in model {self.model_path}: {actuator_name}")
             actuator_ids.append(int(actuator_id))
         return np.asarray(actuator_ids, dtype=np.int32)
+
+    def _resolve_optional_geom_ids(self, geom_names) -> np.ndarray:
+        geom_ids = []
+        for geom_name in geom_names:
+            geom_ids.append(int(mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, str(geom_name))))
+        return np.asarray(geom_ids, dtype=np.int32)
 
 
 def _quat_to_roll_pitch(quat: np.ndarray) -> tuple[float, float]:

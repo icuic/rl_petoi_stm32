@@ -228,6 +228,10 @@ def test_reset_and_reward_config_are_applied():
             "vertical_velocity": 0.08,
             "joint_position": 0.02,
             "drift": 0.1,
+            "contact_slip": 0.2,
+            "rear_contact_slip": 0.1,
+            "front_contact_duty": 0.01,
+            "rear_contact_bonus": 0.01,
         },
     )
 
@@ -245,5 +249,11 @@ def test_reset_and_reward_config_are_applied():
     assert "lateral_velocity_penalty" in info["reward_terms"]
     assert "joint_position_penalty" in info["reward_terms"]
     assert "drift_penalty" in info["reward_terms"]
+    assert "contact_slip_penalty" in info["reward_terms"]
+    assert "rear_contact_slip_penalty" in info["reward_terms"]
+    assert "front_contact_duty_penalty" in info["reward_terms"]
+    assert "rear_contact_bonus" in info["reward_terms"]
+    assert "foot_quality" in info
+    assert all(np.isfinite(value) for value in info["foot_quality"].values())
 
     env.close()

@@ -200,6 +200,70 @@ across these seeds. The strongest next experiment is therefore not another
 blind continuation run; it is a targeted gait-quality variant that changes the
 reference/control balance and adds explicit pressure against dragging/sliding.
 
+## Gait Quality v1 Follow-Up
+
+The first targeted follow-up changed the residual gait prior and enabled contact
+quality terms:
+
+```text
+config: training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v1.yaml
+init_model: current 10k best checkpoint
+total_timesteps: 50000
+shoulder_amplitude: 0.10 rad
+knee_amplitude: 0.10 rad
+shoulder/hip action_scale: 0.08 rad
+knee/lower-leg action_scale: 0.05 rad
+contact_slip: 0.15
+rear_contact_slip: 0.10
+front_contact_duty: 0.015
+rear_contact_bonus: 0.01
+```
+
+Training completed and produced:
+
+```text
+model: training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v1/final_model.zip
+video: assets/videos/petoi_bittle_v0_gait_quality_v1_50k_rollout.mp4
+eval: experiments/reports/petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v1_eval_5ep.json
+contact: experiments/reports/gait_contact_analysis/petoi_bittle_v0_gait_quality_v1_50k_5seed_contact_summary.json
+```
+
+Evaluation result:
+
+```text
+reward_mean: 151.2325 +/- 515.0957
+distance_x_mean: 0.9747 +/- 0.7302 m
+fall_rate: 0.0
+termination_reasons: timeout=5
+```
+
+Contact result:
+
+```text
+contact_slip_speed_mean: 0.1020 +/- 0.0022 m/s
+front_contact_duty_factor_mean: 0.6039 +/- 0.0070
+rear_contact_duty_factor_mean: 0.2890 +/- 0.0043
+front_contact_slip_speed_mean: 0.0837 +/- 0.0009 m/s
+rear_contact_slip_speed_mean: 0.1202 +/- 0.0049 m/s
+rear_to_front_contact_slip_ratio: 1.4373 +/- 0.0693
+```
+
+Interpretation:
+
+```text
+1. v1 moved the contact diagnostics in the intended direction:
+   rear/front slip ratio improved from 1.81x to 1.44x.
+2. Rear contact duty increased from 0.222 to 0.289.
+3. Forward progress became worse and less stable:
+   distance_x_mean dropped from 1.267 m to 0.975 m.
+4. v1 is therefore not a new best policy, but it proves the added diagnostics
+   and reward knobs can influence the gait.
+```
+
+The next variant should keep the shoulder/action-scale change modest, reduce or
+remove the rear contact bonus, and preserve stronger progress pressure. The goal
+is to retain the lower rear slip without sacrificing deterministic distance.
+
 ## Recommended Next Experiments
 
 Before hardware deployment, try one or more simulation-only variants:

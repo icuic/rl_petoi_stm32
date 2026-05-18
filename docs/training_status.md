@@ -113,11 +113,33 @@ estimated total RAM: 512 B
   motion rather than coordinated hip/thigh motion.
 - Deployment to hardware should wait until the simulated motion is visually
   acceptable and the action distribution is reviewed.
+- A diagnostic gait-quality run was tested after contact analysis:
+
+```text
+config: training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v1.yaml
+model: training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v1/final_model.zip
+video: assets/videos/petoi_bittle_v0_gait_quality_v1_50k_rollout.mp4
+eval: experiments/reports/petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v1_eval_5ep.json
+contact: experiments/reports/gait_contact_analysis/petoi_bittle_v0_gait_quality_v1_50k_5seed_contact_summary.json
+reward_mean: 151.2325
+distance_x_mean: 0.9747
+distance_x_std: 0.7302
+fall_rate: 0.0
+rear_to_front_contact_slip_ratio: 1.4373
+```
+
+This v1 run improved rear/front slip balance versus the current candidate
+(`1.44x` vs `1.81x`) and increased rear contact duty (`0.289` vs `0.222`), but
+it reduced and destabilized forward progress. Treat it as useful evidence for
+the next reward/control iteration, not as the new deployable candidate.
 
 ## Suggested Next Checks
 
-1. Record the selected 10k checkpoint rollout and inspect the gait visually.
-2. Run a longer deterministic evaluation, such as 30 or 50 episodes.
-3. Compare joint action traces for hip joints versus knee joints.
-4. If thigh/hip motion is weak, revise the residual gait prior, action scale,
-   or reward terms before hardware deployment.
+1. Inspect the current candidate video and the gait_quality_v1 video side by
+   side.
+2. Create a gait_quality_v2 variant that keeps the slip/contact improvements
+   while restoring forward progress.
+3. Run a longer deterministic evaluation, such as 30 or 50 episodes, only after
+   a candidate beats the current 5-episode baseline.
+4. Do not update ONNX or STM32 artifacts until a new candidate improves both
+   progress and gait-quality diagnostics.
