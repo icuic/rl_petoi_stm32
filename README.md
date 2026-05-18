@@ -32,6 +32,7 @@ bash scripts/record_eval.sh training/configs/ppo_petoi_bittle_v0_trot_residual_d
   --model training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue_10000_steps.zip \
   --output assets/videos/petoi_bittle_v0_deployable_v0_10k_rollout.mp4
 bash scripts/analyze_policy_actions.sh training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue.yaml
+bash scripts/analyze_gait_contacts.sh training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue.yaml
 bash scripts/pack_artifacts.sh
 ```
 

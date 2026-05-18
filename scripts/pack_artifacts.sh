@@ -70,6 +70,7 @@ required_paths=(
   "models/reports/petoi_bittle_v0_deployable_v0_best_actor_onnx.json"
   "experiments/reports/checkpoint_eval"
   "experiments/reports/action_analysis"
+  "experiments/reports/gait_contact_analysis"
   "assets/videos/petoi_bittle_v0_deployable_v0_10k_rollout.mp4"
   "firmware/stm32h747_disco/test_vectors/deployable_v0_policy_vector.json"
   "README.md"
