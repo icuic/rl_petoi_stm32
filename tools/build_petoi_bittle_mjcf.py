@@ -69,7 +69,7 @@ def _ensure_floor_material(root: ET.Element) -> None:
                 "name": "floor_grid",
                 "texture": "floor_grid",
                 "texrepeat": "12 12",
-                "reflectance": "0.05",
+                "reflectance": "0",
             },
         )
 
