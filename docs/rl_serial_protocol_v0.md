@@ -102,6 +102,24 @@ debug commands reduce ambiguity:
 - `RL_SET_TARGETS` isolates actuator command execution
 - `RL_STEP` is enabled after both halves are proven independently
 
+The first-day host-side safety config and generated bring-up frames are:
+
+```text
+protocol/bittle_bringup_safety_v0.json
+protocol/test_vectors/bittle_bringup_v0.json
+```
+
+Use these scripts before touching hardware:
+
+```bash
+bash scripts/generate_bittle_bringup_vectors.sh
+bash scripts/bittle_bringup_probe.sh --list
+bash scripts/bittle_bringup_probe.sh --get-state
+bash scripts/bittle_bringup_probe.sh --index 0
+```
+
+Target writes to a real serial port require an explicit `--allow-motion` flag.
+
 ## State Mapping to deployable_v0
 
 The Bittle-side telemetry returned by `RL_GET_STATE` or `RL_STEP` fills the
@@ -226,9 +244,10 @@ instead of duplicating them.
 
 ## Immediate Firmware Milestones
 
-1. Add `RL_GET_STATE`.
-2. Add `RL_SET_TARGETS`.
-3. Add `RL_STEP`.
-4. Add a host-side Python protocol probe for desktop bring-up.
+1. Keep `RL_GET_STATE` as the first hardware command.
+2. Use `RL_SET_TARGETS` only with the conservative bring-up vectors until joint
+   mapping is verified.
+3. Add/enable `RL_STEP` after telemetry and target execution are both proven.
+4. Use the host-side Python protocol probe for desktop bring-up.
 5. Once hardware arrives, validate units, latency, and packet cadence before
    connecting the STM32 policy loop.

@@ -1,0 +1,497 @@
+{
+  "version": "bittle_bringup_vectors_v0",
+  "source_config": "bittle_bringup_safety_v0",
+  "rl_token": "Y",
+  "joint_order": [
+    "shrfs_joint",
+    "shrft_joint",
+    "shrrs_joint",
+    "shrrt_joint",
+    "shlfs_joint",
+    "shlft_joint",
+    "shlrs_joint",
+    "shlrt_joint"
+  ],
+  "neutral_pose_rad": [
+    0.2,
+    1.4,
+    0.2,
+    1.4,
+    0.2,
+    1.4,
+    0.2,
+    1.4
+  ],
+  "safety": {
+    "first_day_soft_limit_rad": {
+      "max_abs_delta_from_neutral": 0.12,
+      "max_single_joint_test_delta": 0.035,
+      "max_low_amplitude_gait_delta": 0.04,
+      "max_target_step_delta": 0.035
+    },
+    "runtime_abort_gate": {
+      "max_abs_roll_rad": 0.35,
+      "max_abs_pitch_rad": 0.35,
+      "telemetry_timeout_ms": 100,
+      "command_response_timeout_ms": 100,
+      "require_feedback_valid": true,
+      "require_command_accepted": true
+    }
+  },
+  "get_state_request": {
+    "sequence_id": 1,
+    "message_type": "RL_GET_STATE_REQ",
+    "frame_hex": "524c0001010000009e26",
+    "wire_hex_with_default_token": "59524c0001010000009e26"
+  },
+  "set_target_sequence": [
+    {
+      "sequence_id": 2,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.2,
+        1.4,
+        0.2,
+        1.4,
+        0.2,
+        1.4,
+        0.2,
+        1.4
+      ],
+      "frame_hex": "524c000202002000cdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33f7084",
+      "wire_hex_with_default_token": "59524c000202002000cdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33f7084"
+    },
+    {
+      "sequence_id": 3,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.235,
+        1.4,
+        0.2,
+        1.4,
+        0.2,
+        1.4,
+        0.2,
+        1.4
+      ],
+      "frame_hex": "524c000203002000d7a3703e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33fbe0d",
+      "wire_hex_with_default_token": "59524c000203002000d7a3703e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33fbe0d",
+      "test": "single_joint_0_positive",
+      "joint_name": "shrfs_joint"
+    },
+    {
+      "sequence_id": 4,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.165,
+        1.4,
+        0.2,
+        1.4,
+        0.2,
+        1.4,
+        0.2,
+        1.4
+      ],
+      "frame_hex": "524c000204002000c3f5283e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33f4335",
+      "wire_hex_with_default_token": "59524c000204002000c3f5283e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33f4335",
+      "test": "single_joint_0_negative",
+      "joint_name": "shrfs_joint"
+    },
+    {
+      "sequence_id": 5,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.2,
+        1.435,
+        0.2,
+        1.4,
+        0.2,
+        1.4,
+        0.2,
+        1.4
+      ],
+      "frame_hex": "524c000205002000cdcc4c3e14aeb73fcdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33f5c59",
+      "wire_hex_with_default_token": "59524c000205002000cdcc4c3e14aeb73fcdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33f5c59",
+      "test": "single_joint_1_positive",
+      "joint_name": "shrft_joint"
+    },
+    {
+      "sequence_id": 6,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.2,
+        1.365,
+        0.2,
+        1.4,
+        0.2,
+        1.4,
+        0.2,
+        1.4
+      ],
+      "frame_hex": "524c000206002000cdcc4c3e52b8ae3fcdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33f4d8c",
+      "wire_hex_with_default_token": "59524c000206002000cdcc4c3e52b8ae3fcdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33f4d8c",
+      "test": "single_joint_1_negative",
+      "joint_name": "shrft_joint"
+    },
+    {
+      "sequence_id": 7,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.2,
+        1.4,
+        0.235,
+        1.4,
+        0.2,
+        1.4,
+        0.2,
+        1.4
+      ],
+      "frame_hex": "524c000207002000cdcc4c3e3333b33fd7a3703e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33f4f32",
+      "wire_hex_with_default_token": "59524c000207002000cdcc4c3e3333b33fd7a3703e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33f4f32",
+      "test": "single_joint_2_positive",
+      "joint_name": "shrrs_joint"
+    },
+    {
+      "sequence_id": 8,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.2,
+        1.4,
+        0.165,
+        1.4,
+        0.2,
+        1.4,
+        0.2,
+        1.4
+      ],
+      "frame_hex": "524c000208002000cdcc4c3e3333b33fc3f5283e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33ff4a3",
+      "wire_hex_with_default_token": "59524c000208002000cdcc4c3e3333b33fc3f5283e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33ff4a3",
+      "test": "single_joint_2_negative",
+      "joint_name": "shrrs_joint"
+    },
+    {
+      "sequence_id": 9,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.2,
+        1.4,
+        0.2,
+        1.435,
+        0.2,
+        1.4,
+        0.2,
+        1.4
+      ],
+      "frame_hex": "524c000209002000cdcc4c3e3333b33fcdcc4c3e14aeb73fcdcc4c3e3333b33fcdcc4c3e3333b33f28af",
+      "wire_hex_with_default_token": "59524c000209002000cdcc4c3e3333b33fcdcc4c3e14aeb73fcdcc4c3e3333b33fcdcc4c3e3333b33f28af",
+      "test": "single_joint_3_positive",
+      "joint_name": "shrrt_joint"
+    },
+    {
+      "sequence_id": 10,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.2,
+        1.4,
+        0.2,
+        1.365,
+        0.2,
+        1.4,
+        0.2,
+        1.4
+      ],
+      "frame_hex": "524c00020a002000cdcc4c3e3333b33fcdcc4c3e52b8ae3fcdcc4c3e3333b33fcdcc4c3e3333b33fd0f3",
+      "wire_hex_with_default_token": "59524c00020a002000cdcc4c3e3333b33fcdcc4c3e52b8ae3fcdcc4c3e3333b33fcdcc4c3e3333b33fd0f3",
+      "test": "single_joint_3_negative",
+      "joint_name": "shrrt_joint"
+    },
+    {
+      "sequence_id": 11,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.2,
+        1.4,
+        0.2,
+        1.4,
+        0.235,
+        1.4,
+        0.2,
+        1.4
+      ],
+      "frame_hex": "524c00020b002000cdcc4c3e3333b33fcdcc4c3e3333b33fd7a3703e3333b33fcdcc4c3e3333b33fc720",
+      "wire_hex_with_default_token": "59524c00020b002000cdcc4c3e3333b33fcdcc4c3e3333b33fd7a3703e3333b33fcdcc4c3e3333b33fc720",
+      "test": "single_joint_4_positive",
+      "joint_name": "shlfs_joint"
+    },
+    {
+      "sequence_id": 12,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.2,
+        1.4,
+        0.2,
+        1.4,
+        0.165,
+        1.4,
+        0.2,
+        1.4
+      ],
+      "frame_hex": "524c00020c002000cdcc4c3e3333b33fcdcc4c3e3333b33fc3f5283e3333b33fcdcc4c3e3333b33f13e9",
+      "wire_hex_with_default_token": "59524c00020c002000cdcc4c3e3333b33fcdcc4c3e3333b33fc3f5283e3333b33fcdcc4c3e3333b33f13e9",
+      "test": "single_joint_4_negative",
+      "joint_name": "shlfs_joint"
+    },
+    {
+      "sequence_id": 13,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.2,
+        1.4,
+        0.2,
+        1.4,
+        0.2,
+        1.435,
+        0.2,
+        1.4
+      ],
+      "frame_hex": "524c00020d002000cdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e14aeb73fcdcc4c3e3333b33f573c",
+      "wire_hex_with_default_token": "59524c00020d002000cdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e14aeb73fcdcc4c3e3333b33f573c",
+      "test": "single_joint_5_positive",
+      "joint_name": "shlft_joint"
+    },
+    {
+      "sequence_id": 14,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.2,
+        1.4,
+        0.2,
+        1.4,
+        0.2,
+        1.365,
+        0.2,
+        1.4
+      ],
+      "frame_hex": "524c00020e002000cdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e52b8ae3fcdcc4c3e3333b33fbb84",
+      "wire_hex_with_default_token": "59524c00020e002000cdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e52b8ae3fcdcc4c3e3333b33fbb84",
+      "test": "single_joint_5_negative",
+      "joint_name": "shlft_joint"
+    },
+    {
+      "sequence_id": 15,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.2,
+        1.4,
+        0.2,
+        1.4,
+        0.2,
+        1.4,
+        0.235,
+        1.4
+      ],
+      "frame_hex": "524c00020f002000cdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33fd7a3703e3333b33f48e3",
+      "wire_hex_with_default_token": "59524c00020f002000cdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33fd7a3703e3333b33f48e3",
+      "test": "single_joint_6_positive",
+      "joint_name": "shlrs_joint"
+    },
+    {
+      "sequence_id": 16,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.2,
+        1.4,
+        0.2,
+        1.4,
+        0.2,
+        1.4,
+        0.165,
+        1.4
+      ],
+      "frame_hex": "524c000210002000cdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33fc3f5283e3333b33f49d7",
+      "wire_hex_with_default_token": "59524c000210002000cdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33fc3f5283e3333b33f49d7",
+      "test": "single_joint_6_negative",
+      "joint_name": "shlrs_joint"
+    },
+    {
+      "sequence_id": 17,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.2,
+        1.4,
+        0.2,
+        1.4,
+        0.2,
+        1.4,
+        0.2,
+        1.435
+      ],
+      "frame_hex": "524c000211002000cdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e14aeb73f2edb",
+      "wire_hex_with_default_token": "59524c000211002000cdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e14aeb73f2edb",
+      "test": "single_joint_7_positive",
+      "joint_name": "shlrt_joint"
+    },
+    {
+      "sequence_id": 18,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.2,
+        1.4,
+        0.2,
+        1.4,
+        0.2,
+        1.4,
+        0.2,
+        1.365
+      ],
+      "frame_hex": "524c000212002000cdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e52b8ae3fc0a1",
+      "wire_hex_with_default_token": "59524c000212002000cdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e3333b33fcdcc4c3e52b8ae3fc0a1",
+      "test": "single_joint_7_negative",
+      "joint_name": "shlrt_joint"
+    },
+    {
+      "sequence_id": 19,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.2,
+        1.422,
+        0.2,
+        1.378,
+        0.2,
+        1.378,
+        0.2,
+        1.422
+      ],
+      "frame_hex": "524c000213002000cdcc4c3e1904b63fcdcc4c3e4e62b03fcdcc4c3e4e62b03fcdcc4c3e1904b63f7053",
+      "wire_hex_with_default_token": "59524c000213002000cdcc4c3e1904b63fcdcc4c3e4e62b03fcdcc4c3e4e62b03fcdcc4c3e1904b63f7053",
+      "test": "low_amplitude_reference_phase_00",
+      "phase": 0.0
+    },
+    {
+      "sequence_id": 20,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.212728,
+        1.415556,
+        0.187272,
+        1.384444,
+        0.187272,
+        1.384444,
+        0.212728,
+        1.415556
+      ],
+      "frame_hex": "524c0002140020005ed5593ef030b53f3bc43f3e7635b13f3bc43f3e7635b13f5ed5593ef030b53fc7bf",
+      "wire_hex_with_default_token": "59524c0002140020005ed5593ef030b53f3bc43f3e7635b13f3bc43f3e7635b13f5ed5593ef030b53fc7bf",
+      "test": "low_amplitude_reference_phase_01",
+      "phase": 0.125
+    },
+    {
+      "sequence_id": 21,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.218,
+        1.4,
+        0.182,
+        1.4,
+        0.182,
+        1.4,
+        0.218,
+        1.4
+      ],
+      "frame_hex": "524c000215002000643b5f3e3333b33f355e3a3e3333b33f355e3a3e3333b33f643b5f3e3333b33f4229",
+      "wire_hex_with_default_token": "59524c000215002000643b5f3e3333b33f355e3a3e3333b33f355e3a3e3333b33f643b5f3e3333b33f4229",
+      "test": "low_amplitude_reference_phase_02",
+      "phase": 0.25
+    },
+    {
+      "sequence_id": 22,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.212728,
+        1.384444,
+        0.187272,
+        1.415556,
+        0.187272,
+        1.415556,
+        0.212728,
+        1.384444
+      ],
+      "frame_hex": "524c0002160020005ed5593e7635b13f3bc43f3ef030b53f3bc43f3ef030b53f5ed5593e7635b13fb176",
+      "wire_hex_with_default_token": "59524c0002160020005ed5593e7635b13f3bc43f3ef030b53f3bc43f3ef030b53f5ed5593e7635b13fb176",
+      "test": "low_amplitude_reference_phase_03",
+      "phase": 0.375
+    },
+    {
+      "sequence_id": 23,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.2,
+        1.378,
+        0.2,
+        1.422,
+        0.2,
+        1.422,
+        0.2,
+        1.378
+      ],
+      "frame_hex": "524c000217002000cdcc4c3e4e62b03fcdcc4c3e1904b63fcdcc4c3e1904b63fcdcc4c3e4e62b03facc5",
+      "wire_hex_with_default_token": "59524c000217002000cdcc4c3e4e62b03fcdcc4c3e1904b63fcdcc4c3e1904b63fcdcc4c3e4e62b03facc5",
+      "test": "low_amplitude_reference_phase_04",
+      "phase": 0.5
+    },
+    {
+      "sequence_id": 24,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.187272,
+        1.384444,
+        0.212728,
+        1.415556,
+        0.212728,
+        1.415556,
+        0.187272,
+        1.384444
+      ],
+      "frame_hex": "524c0002180020003bc43f3e7635b13f5ed5593ef030b53f5ed5593ef030b53f3bc43f3e7635b13ffc09",
+      "wire_hex_with_default_token": "59524c0002180020003bc43f3e7635b13f5ed5593ef030b53f5ed5593ef030b53f3bc43f3e7635b13ffc09",
+      "test": "low_amplitude_reference_phase_05",
+      "phase": 0.625
+    },
+    {
+      "sequence_id": 25,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.182,
+        1.4,
+        0.218,
+        1.4,
+        0.218,
+        1.4,
+        0.182,
+        1.4
+      ],
+      "frame_hex": "524c000219002000355e3a3e3333b33f643b5f3e3333b33f643b5f3e3333b33f355e3a3e3333b33f9662",
+      "wire_hex_with_default_token": "59524c000219002000355e3a3e3333b33f643b5f3e3333b33f643b5f3e3333b33f355e3a3e3333b33f9662",
+      "test": "low_amplitude_reference_phase_06",
+      "phase": 0.75
+    },
+    {
+      "sequence_id": 26,
+      "message_type": "RL_SET_TARGETS_REQ",
+      "target_joint_rad": [
+        0.187272,
+        1.415556,
+        0.212728,
+        1.384444,
+        0.212728,
+        1.384444,
+        0.187272,
+        1.415556
+      ],
+      "frame_hex": "524c00021a0020003bc43f3ef030b53f5ed5593e7635b13f5ed5593e7635b13f3bc43f3ef030b53f8ac0",
+      "wire_hex_with_default_token": "59524c00021a0020003bc43f3ef030b53f5ed5593e7635b13f5ed5593e7635b13f3bc43f3ef030b53f8ac0",
+      "test": "low_amplitude_reference_phase_07",
+      "phase": 0.875
+    }
+  ]
+}

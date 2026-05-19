@@ -1,0 +1,54 @@
+{
+  "version": "bittle_bringup_safety_v0",
+  "purpose": "Conservative host-side limits for first Petoi Bittle X V2 bring-up.",
+  "policy_candidate": {
+    "config": "training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2.yaml",
+    "checkpoint": "training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2_30000_steps.zip",
+    "onnx": "models/onnx/petoi_bittle_v0_gait_quality_v2_30k_actor.onnx"
+  },
+  "joint_order": [
+    "shrfs_joint",
+    "shrft_joint",
+    "shrrs_joint",
+    "shrrt_joint",
+    "shlfs_joint",
+    "shlft_joint",
+    "shlrs_joint",
+    "shlrt_joint"
+  ],
+  "neutral_pose_rad": [
+    0.2,
+    1.4,
+    0.2,
+    1.4,
+    0.2,
+    1.4,
+    0.2,
+    1.4
+  ],
+  "first_day_soft_limit_rad": {
+    "max_abs_delta_from_neutral": 0.12,
+    "max_single_joint_test_delta": 0.035,
+    "max_low_amplitude_gait_delta": 0.04,
+    "max_target_step_delta": 0.035
+  },
+  "runtime_abort_gate": {
+    "max_abs_roll_rad": 0.35,
+    "max_abs_pitch_rad": 0.35,
+    "telemetry_timeout_ms": 100,
+    "command_response_timeout_ms": 100,
+    "require_feedback_valid": true,
+    "require_command_accepted": true
+  },
+  "low_amplitude_reference": {
+    "phase_count": 8,
+    "shoulder_amplitude_rad": 0.018,
+    "knee_amplitude_rad": 0.022,
+    "duty_bias": 0.0
+  },
+  "notes": [
+    "These are first-day host-side limits, not final measured Bittle joint limits.",
+    "Servo ID, sign, zero offset, and final min/max angle must be filled after OpenCat/Bittle mapping is verified.",
+    "Do not run the learned walking policy until neutral, single-joint, and low-amplitude scripted targets are accepted by hardware."
+  ]
+}

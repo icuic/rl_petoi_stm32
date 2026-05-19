@@ -47,6 +47,8 @@ bash scripts/export_policy.sh training/configs/ppo_petoi_bittle_v0_trot_residual
   --output models/onnx/petoi_bittle_v0_gait_quality_v2_30k_actor.onnx \
   --report models/reports/petoi_bittle_v0_gait_quality_v2_30k_actor_onnx.json \
   --vector-output firmware/stm32h747_disco/test_vectors/gait_quality_v2_30k_policy_vector.json
+bash scripts/generate_bittle_bringup_vectors.sh
+bash scripts/bittle_bringup_probe.sh --list
 bash scripts/record_eval.sh training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue.yaml \
   --zero-action --output assets/videos/gait_compare_A_hand_gait_prior_track.mp4
 bash scripts/analyze_policy_actions.sh training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue.yaml
