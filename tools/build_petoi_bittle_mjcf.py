@@ -41,6 +41,39 @@ def _set_or_insert(root: ET.Element, tag: str, attrs: dict[str, str], index: int
     return elem
 
 
+def _ensure_floor_material(root: ET.Element) -> None:
+    asset = root.find("asset")
+    if asset is None:
+        asset = ET.Element("asset")
+        root.insert(3, asset)
+
+    if asset.find("./texture[@name='floor_grid']") is None:
+        ET.SubElement(
+            asset,
+            "texture",
+            {
+                "name": "floor_grid",
+                "type": "2d",
+                "builtin": "checker",
+                "width": "512",
+                "height": "512",
+                "rgb1": "0.88 0.88 0.84",
+                "rgb2": "0.38 0.44 0.50",
+            },
+        )
+    if asset.find("./material[@name='floor_grid']") is None:
+        ET.SubElement(
+            asset,
+            "material",
+            {
+                "name": "floor_grid",
+                "texture": "floor_grid",
+                "texrepeat": "12 12",
+                "reflectance": "0.05",
+            },
+        )
+
+
 def _wrap_worldbody(worldbody: ET.Element, base_mass: float) -> None:
     original_children = list(worldbody)
     for child in original_children:
@@ -53,7 +86,7 @@ def _wrap_worldbody(worldbody: ET.Element, base_mass: float) -> None:
             "name": "floor",
             "type": "plane",
             "size": "2 2 0.02",
-            "rgba": "0.72 0.72 0.72 1",
+            "material": "floor_grid",
             "friction": "0.9 0.02 0.001",
         },
     )
@@ -171,6 +204,7 @@ def build_mjcf(
         {},
         2,
     )
+    _ensure_floor_material(root)
 
     worldbody = root.find("worldbody")
     if worldbody is None:

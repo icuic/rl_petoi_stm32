@@ -205,6 +205,8 @@ the next reward/control iteration, not as the new deployable candidate.
 - Video recording now uses a tracking camera by default, so the robot remains
   visible after walking forward. Use `--camera fixed` when an old fixed-scene
   comparison is needed.
+- The generated Petoi MJCF now uses a checker-grid floor material, so tracking
+  camera videos retain visible ground motion cues.
 
 ## Suggested Next Checks
 
