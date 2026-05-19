@@ -47,6 +47,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, default=Path("experiments/reports/action_analysis"))
     parser.add_argument("--prefix", default="petoi_bittle_v0_deployable_v0_10k")
     parser.add_argument("--deterministic", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument(
+        "--zero-action",
+        action="store_true",
+        help="Analyze the residual gait prior with zero policy residual instead of loading PPO.",
+    )
     return parser.parse_args()
 
 
@@ -147,11 +152,11 @@ def main() -> None:
     seed = args.seed if args.seed is not None else int(config.get("seed", 0))
     env_config = config.get("env", {})
 
-    if not args.model.exists():
+    if not args.zero_action and not args.model.exists():
         raise FileNotFoundError(f"Model not found: {args.model}")
 
     env = make_env(env_config)
-    model = PPO.load(str(args.model), env=None, device="cpu")
+    model = None if args.zero_action else PPO.load(str(args.model), env=None, device="cpu")
     obs, _ = env.reset(seed=seed)
 
     actions: list[np.ndarray] = []
@@ -164,7 +169,12 @@ def main() -> None:
     termination_reason = "unknown"
 
     for _ in range(args.steps):
-        action, _ = model.predict(obs, deterministic=args.deterministic)
+        if args.zero_action:
+            action = np.zeros(env.action_space.shape, dtype=env.action_space.dtype)
+        else:
+            if model is None:
+                raise ValueError("model is required unless --zero-action is set")
+            action, _ = model.predict(obs, deterministic=args.deterministic)
         action = np.asarray(action, dtype=np.float32)
         reference = env._reference_joint_targets(env.phase).copy()
         target = env._normalized_action_to_joint_targets(action).copy()
@@ -200,7 +210,8 @@ def main() -> None:
     summary: dict[str, Any] = {
         "created_at": datetime.now(timezone.utc).isoformat(),
         "config": str(args.config),
-        "model": str(args.model),
+        "model": None if args.zero_action else str(args.model),
+        "policy_mode": "zero_action" if args.zero_action else "ppo",
         "seed": seed,
         "deterministic": args.deterministic,
         "steps": int(actions_array.shape[0]),

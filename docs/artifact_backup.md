@@ -18,8 +18,10 @@ models/reports/petoi_bittle_v0_deployable_v0_best_actor_onnx.json
 experiments/reports/checkpoint_eval/
 experiments/reports/action_analysis/
 experiments/reports/gait_contact_analysis/
+experiments/reports/gait_baseline_comparison/
 assets/videos/
 experiments/petoi_bittle_v0_gait_diagnosis.md
+experiments/gait_baseline_comparison.md
 docs/hardware_bringup_checklist.md
 ```
 

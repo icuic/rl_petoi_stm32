@@ -72,14 +72,19 @@ required_paths=(
   "experiments/reports/checkpoint_eval"
   "experiments/reports/action_analysis"
   "experiments/reports/gait_contact_analysis"
+  "experiments/reports/gait_baseline_comparison"
   "assets/videos/petoi_bittle_v0_deployable_v0_10k_rollout.mp4"
   "assets/videos/petoi_bittle_v0_gait_quality_v2_30k_rollout_track.mp4"
+  "assets/videos/gait_compare_A_hand_gait_prior_track.mp4"
+  "assets/videos/gait_compare_B_deployable_10k_track.mp4"
+  "assets/videos/gait_compare_C_gait_quality_v2_30k_track.mp4"
   "firmware/stm32h747_disco/test_vectors/deployable_v0_policy_vector.json"
   "README.md"
   "docs/training_status.md"
   "docs/artifact_backup.md"
   "docs/hardware_bringup_checklist.md"
   "experiments/petoi_bittle_v0_gait_diagnosis.md"
+  "experiments/gait_baseline_comparison.md"
 )
 
 optional_paths=(
@@ -132,6 +137,7 @@ manifest="${tmp_dir}/ARTIFACT_MANIFEST.txt"
   printf 'best_onnx=%s\n' "models/onnx/petoi_bittle_v0_deployable_v0_best_actor.onnx"
   printf 'best_video=%s\n' "assets/videos/petoi_bittle_v0_deployable_v0_10k_rollout.mp4"
   printf 'simulation_candidate_video=%s\n' "assets/videos/petoi_bittle_v0_gait_quality_v2_30k_rollout_track.mp4"
+  printf 'baseline_comparison_report=%s\n' "experiments/gait_baseline_comparison.md"
   printf '\n[included_paths]\n'
   printf '%s\n' "${archive_paths[@]}"
   printf '\n[sha256]\n'

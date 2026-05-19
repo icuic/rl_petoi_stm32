@@ -63,6 +63,33 @@ distance (`1.429 m` vs `1.267 m`) and slightly improves rear/front slip ratio
 v2_30k as the next simulation candidate to inspect visually and evaluate more
 deeply before exporting ONNX or rebuilding STM32 artifacts.
 
+## Hand Gait Baseline Comparison
+
+The current sinusoidal hand gait prior, deployable 10k policy, and v2_30k
+policy were compared under the same flat-ground setup and tracking-camera video
+view:
+
+```text
+report: experiments/gait_baseline_comparison.md
+videos:
+  assets/videos/gait_compare_A_hand_gait_prior_track.mp4
+  assets/videos/gait_compare_B_deployable_10k_track.mp4
+  assets/videos/gait_compare_C_gait_quality_v2_30k_track.mp4
+```
+
+Key 5-episode deterministic results:
+
+```text
+A hand gait prior:   distance_x_mean=0.4250, fall_rate=0.0, rear/front slip=2.4874
+B deployable 10k:    distance_x_mean=1.2671, fall_rate=0.0, rear/front slip=1.8137
+C gait_quality_v2:   distance_x_mean=1.4290, fall_rate=0.0, rear/front slip=1.6867
+```
+
+This shows that the residual RL policies do improve over the current simplified
+sinusoidal gait prior in simulation. It does not prove superiority over a
+mature Petoi/OpenCat official gait, which still needs to be tested after
+hardware/OpenCat integration.
+
 ## Evaluation Summary
 
 Checkpoint selection report:

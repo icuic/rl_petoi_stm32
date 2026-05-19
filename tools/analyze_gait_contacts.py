@@ -64,6 +64,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prefix", default="petoi_bittle_v0_deployable_v0_10k")
     parser.add_argument("--deterministic", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument(
+        "--zero-action",
+        action="store_true",
+        help="Analyze the residual gait prior with zero policy residual instead of loading PPO.",
+    )
+    parser.add_argument(
         "--contact-height-threshold",
         type=float,
         default=0.012,
@@ -229,7 +234,7 @@ def aggregate_rollouts(summaries: list[dict[str, Any]]) -> dict[str, Any]:
 def run_rollout(
     args: argparse.Namespace,
     env_config: dict[str, Any],
-    model: PPO,
+    model: PPO | None,
     seed: int,
 ) -> tuple[dict[str, Any], dict[str, np.ndarray], dict[str, np.ndarray], dict[str, np.ndarray], np.ndarray, np.ndarray, np.ndarray]:
     env = make_env(env_config)
@@ -267,7 +272,12 @@ def run_rollout(
         base_height.append(float(env.data.qpos[2]))
         x_positions.append(float(env.data.qpos[0]))
 
-        action, _ = model.predict(obs, deterministic=args.deterministic)
+        if args.zero_action:
+            action = np.zeros(env.action_space.shape, dtype=env.action_space.dtype)
+        else:
+            if model is None:
+                raise ValueError("model is required unless --zero-action is set")
+            action, _ = model.predict(obs, deterministic=args.deterministic)
         obs, reward, terminated, truncated, info = env.step(action)
         rewards.append(float(reward))
         termination_reason = str(info.get("termination_reason", "unknown"))
@@ -304,7 +314,8 @@ def run_rollout(
     summary: dict[str, Any] = {
         "created_at": datetime.now(timezone.utc).isoformat(),
         "config": str(args.config),
-        "model": str(args.model),
+        "model": None if args.zero_action else str(args.model),
+        "policy_mode": "zero_action" if args.zero_action else "ppo",
         "seed": seed,
         "deterministic": args.deterministic,
         "steps": int(len(rewards)),
@@ -371,10 +382,10 @@ def main() -> None:
     seeds = parse_seed_list(args.seeds, base_seed, args.episodes)
     env_config = config.get("env", {})
 
-    if not args.model.exists():
+    if not args.zero_action and not args.model.exists():
         raise FileNotFoundError(f"Model not found: {args.model}")
 
-    model = PPO.load(str(args.model), env=None, device="cpu")
+    model = None if args.zero_action else PPO.load(str(args.model), env=None, device="cpu")
     rollout_results = [run_rollout(args, env_config, model, seed) for seed in seeds]
     summaries = [result[0] for result in rollout_results]
 
@@ -387,7 +398,8 @@ def main() -> None:
         summary = {
             "created_at": datetime.now(timezone.utc).isoformat(),
             "config": str(args.config),
-            "model": str(args.model),
+            "model": None if args.zero_action else str(args.model),
+            "policy_mode": "zero_action" if args.zero_action else "ppo",
             "deterministic": args.deterministic,
             "steps_requested": args.steps,
             "contact_height_threshold_m": args.contact_height_threshold,

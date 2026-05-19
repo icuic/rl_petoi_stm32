@@ -23,6 +23,7 @@
 - 当前待复核仿真候选：`gait_quality_v2_30000_steps.zip`，5 episode 距离提升到 `1.4290m`，但尚未导出 ONNX 或更新 STM32 产物。
 - 状态详情见：`docs/training_status.md`
 - Gait 诊断见：`experiments/petoi_bittle_v0_gait_diagnosis.md`
+- Hand gait / RL 对照实验见：`experiments/gait_baseline_comparison.md`
 - 硬件到手前 checklist：`docs/hardware_bringup_checklist.md`
 - 里程碑备份见：`docs/artifact_backup.md` 和 `scripts/pack_artifacts.sh`
 
@@ -36,6 +37,8 @@ bash scripts/record_eval.sh training/configs/ppo_petoi_bittle_v0_trot_residual_d
 bash scripts/record_eval.sh training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2.yaml \
   --model training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2_30000_steps.zip \
   --output assets/videos/petoi_bittle_v0_gait_quality_v2_30k_rollout_track.mp4
+bash scripts/record_eval.sh training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue.yaml \
+  --zero-action --output assets/videos/gait_compare_A_hand_gait_prior_track.mp4
 bash scripts/analyze_policy_actions.sh training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue.yaml
 bash scripts/analyze_gait_contacts.sh training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue.yaml \
   --episodes 5 --prefix petoi_bittle_v0_deployable_v0_10k_5seed
