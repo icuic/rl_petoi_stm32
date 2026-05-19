@@ -305,7 +305,7 @@ Evaluation sweep:
 v2_30k diagnostics:
 
 ```text
-video: assets/videos/petoi_bittle_v0_gait_quality_v2_30k_rollout_track.mp4
+video: assets/videos/petoi_bittle_v0_gait_quality_v2_30k_rollout_track_matte.mp4
 eval: experiments/reports/petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2_30000_eval_5ep.json
 contact: experiments/reports/gait_contact_analysis/petoi_bittle_v0_gait_quality_v2_30k_5seed_contact_summary.json
 action: experiments/reports/action_analysis/petoi_bittle_v0_gait_quality_v2_30k_action_summary.json

@@ -36,7 +36,7 @@ bash scripts/record_eval.sh training/configs/ppo_petoi_bittle_v0_trot_residual_d
   --output assets/videos/petoi_bittle_v0_deployable_v0_10k_rollout.mp4
 bash scripts/record_eval.sh training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2.yaml \
   --model training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2_30000_steps.zip \
-  --output assets/videos/petoi_bittle_v0_gait_quality_v2_30k_rollout_track.mp4
+  --output assets/videos/petoi_bittle_v0_gait_quality_v2_30k_rollout_track_matte.mp4
 bash scripts/record_eval.sh training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue.yaml \
   --zero-action --output assets/videos/gait_compare_A_hand_gait_prior_track.mp4
 bash scripts/analyze_policy_actions.sh training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue.yaml
