@@ -10,17 +10,18 @@
 
 ## Current Status
 
-当前仓库已推进到 **deployable_v0 策略候选 + STM32H747 M7 smoke ELF** 阶段，但暂不建议直接部署到真机。实物 Bittle X V2 到手前，当前重点是仿真 gait 质量诊断，尤其确认策略是否过度依赖小腿动作、髋/大腿动作是否不足。
+当前仓库已推进到 **gait_quality_v2 30k 策略候选 + STM32H747 M7 smoke ELF** 阶段。实物 Bittle X V2 到手前，当前重点是准备硬件联调链路与安全边界；真机部署仍应从站立、零动作、低幅度动作开始逐步推进。
 
-- 当前推荐训练配置：`training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue.yaml`
-- 当前推荐 checkpoint：`training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue_10000_steps.zip`
-- 不推荐使用：`training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue/final_model.zip`，该 100k continuation final 在评估中明显退化。
-- 当前 best 评估：5 episode deterministic，`reward_mean=562.0475`，`distance_x_mean=1.2671m`，`fall_rate=0.0`。
-- 当前 ONNX：`models/onnx/petoi_bittle_v0_deployable_v0_best_actor.onnx`
+- 当前推荐训练配置：`training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2.yaml`
+- 当前推荐 checkpoint：`training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2_30000_steps.zip`
+- 不推荐使用：`training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2/final_model.zip`，该 v2 final 在 30k 后明显退化；旧 100k continuation final 也不推荐使用。
+- 当前 30 episode deterministic 评估：`reward_mean=666.5192`，`distance_x_mean=1.4234m`，`fall_rate=0.0`。
+- 当前 ONNX：`models/onnx/petoi_bittle_v0_gait_quality_v2_30k_actor.onnx`
+- 当前策略向量：`firmware/stm32h747_disco/test_vectors/gait_quality_v2_30k_policy_vector.json`
 - 当前 STM32 ELF：`build/stm32h747_m7_inference_smoke/m7_inference_smoke.elf`
-- 当前 rollout 视频：`assets/videos/petoi_bittle_v0_deployable_v0_10k_rollout.mp4`
-- 已完成 gait_quality_v1 诊断实验：后腿滑移比例有所改善，但前进距离退化，因此它不是新的部署候选；详见 `experiments/petoi_bittle_v0_gait_diagnosis.md`。
-- 当前待复核仿真候选：`gait_quality_v2_30000_steps.zip`，5 episode 距离提升到 `1.4290m`，但尚未导出 ONNX 或更新 STM32 产物。
+- 当前 rollout 视频：`assets/videos/petoi_bittle_v0_gait_quality_v2_30k_rollout_track_matte.mp4`
+- 旧 10k deployable 策略保留为回退基线：`training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue_10000_steps.zip`
+- 已完成 gait_quality_v1/v2 诊断实验：v1 改善后腿滑移但牺牲前进距离；v2 30k 在仿真距离、接触滑移比例和视觉观感上是当前更好的折中。详见 `experiments/petoi_bittle_v0_gait_diagnosis.md`。
 - 状态详情见：`docs/training_status.md`
 - Gait 诊断见：`experiments/petoi_bittle_v0_gait_diagnosis.md`
 - Hand gait / RL 对照实验见：`experiments/gait_baseline_comparison.md`
@@ -34,9 +35,18 @@ bash scripts/select_checkpoint.sh 'experiments/reports/checkpoint_eval/*.json' -
 bash scripts/record_eval.sh training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue.yaml \
   --model training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue_10000_steps.zip \
   --output assets/videos/petoi_bittle_v0_deployable_v0_10k_rollout.mp4
+bash scripts/evaluate.sh training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2.yaml \
+  --model training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2_30000_steps.zip \
+  --episodes 30 \
+  --output experiments/reports/petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2_30000_eval_30ep.json
 bash scripts/record_eval.sh training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2.yaml \
   --model training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2_30000_steps.zip \
   --output assets/videos/petoi_bittle_v0_gait_quality_v2_30k_rollout_track_matte.mp4
+bash scripts/export_policy.sh training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2.yaml \
+  --model training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2_30000_steps.zip \
+  --output models/onnx/petoi_bittle_v0_gait_quality_v2_30k_actor.onnx \
+  --report models/reports/petoi_bittle_v0_gait_quality_v2_30k_actor_onnx.json \
+  --vector-output firmware/stm32h747_disco/test_vectors/gait_quality_v2_30k_policy_vector.json
 bash scripts/record_eval.sh training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue.yaml \
   --zero-action --output assets/videos/gait_compare_A_hand_gait_prior_track.mp4
 bash scripts/analyze_policy_actions.sh training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue.yaml

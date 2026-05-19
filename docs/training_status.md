@@ -1,36 +1,46 @@
 # Training Status
 
-Last updated: 2026-05-18
+Last updated: 2026-05-19
 
 ## Current Candidate
 
-The current deployable policy candidate is not the final checkpoint from the
-100k continuation run. The best evaluated checkpoint is:
+The current deployable policy candidate is the 30k checkpoint from the second
+gait-quality run:
 
 ```text
-training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue_10000_steps.zip
+training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2_30000_steps.zip
 ```
 
 Recommended config:
 
 ```text
-training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue.yaml
+training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2.yaml
 ```
 
-The deployed ONNX and STM32 M7 smoke ELF were regenerated from this 10k
-checkpoint.
+It passed visual review, a 30-episode deterministic evaluation, ONNX parity
+checks, ST Edge AI generation, policy-vector verification, and STM32H747 M7
+smoke ELF build.
 
-## Best Simulation Candidate Under Review
+30-episode deterministic evaluation:
 
-The first gait-quality run regressed forward progress, but the second run found
-a better early checkpoint. This candidate is promising in simulation, but it has
-not replaced the deployable ONNX/STM32 artifacts yet:
+```text
+report: experiments/reports/petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2_30000_eval_30ep.json
+reward_mean: 666.5192
+reward_std: 24.3102
+distance_x_mean: 1.4234
+distance_x_std: 0.0223
+fall_rate: 0.0
+termination_reason_counts: timeout=30
+```
+
+Visual/reference artifacts:
 
 ```text
 config: training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2.yaml
 checkpoint: training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2_30000_steps.zip
 video: assets/videos/petoi_bittle_v0_gait_quality_v2_30k_rollout_track_matte.mp4
 eval: experiments/reports/petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2_30000_eval_5ep.json
+eval_30ep: experiments/reports/petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2_30000_eval_30ep.json
 contact: experiments/reports/gait_contact_analysis/petoi_bittle_v0_gait_quality_v2_30k_5seed_contact_summary.json
 action: experiments/reports/action_analysis/petoi_bittle_v0_gait_quality_v2_30k_action_summary.json
 ```
@@ -57,11 +67,11 @@ rear_to_front_contact_slip_ratio: 1.6867
 knee_to_shoulder_action_abs_ratio: 0.9927
 ```
 
-Compared with the current deployable candidate, v2_30k improves deterministic
+Compared with the previous deployable candidate, v2_30k improves deterministic
 distance (`1.429 m` vs `1.267 m`) and slightly improves rear/front slip ratio
 (`1.69x` vs `1.81x`). It does not improve rear contact duty like v1 did. Treat
-v2_30k as the next simulation candidate to inspect visually and evaluate more
-deeply before exporting ONNX or rebuilding STM32 artifacts.
+v2_30k as the deployable simulation candidate for the next hardware bring-up
+stage, while retaining the old 10k policy as a rollback baseline.
 
 ## Hand Gait Baseline Comparison
 
@@ -90,15 +100,22 @@ sinusoidal gait prior in simulation. It does not prove superiority over a
 mature Petoi/OpenCat official gait, which still needs to be tested after
 hardware/OpenCat integration.
 
-## Evaluation Summary
+## Previous Deployable Baseline
 
-Checkpoint selection report:
+The previous deployable candidate was the 10k checkpoint from the 100k
+continuation run:
+
+```text
+training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue_10000_steps.zip
+```
+
+Its checkpoint selection report:
 
 ```text
 experiments/reports/checkpoint_eval/ranking.json
 ```
 
-Best 5-episode deterministic evaluation:
+Previous best 5-episode deterministic evaluation:
 
 ```text
 report: experiments/reports/checkpoint_eval/continue_10000.json
@@ -130,22 +147,22 @@ regressed badly after the early checkpoints.
 
 ## Exported Artifacts
 
-Best ONNX actor:
+Current ONNX actor:
 
 ```text
-models/onnx/petoi_bittle_v0_deployable_v0_best_actor.onnx
+models/onnx/petoi_bittle_v0_gait_quality_v2_30k_actor.onnx
 ```
 
 ONNX parity report:
 
 ```text
-models/reports/petoi_bittle_v0_deployable_v0_best_actor_onnx.json
+models/reports/petoi_bittle_v0_gait_quality_v2_30k_actor_onnx.json
 ```
 
 STM32 policy vector:
 
 ```text
-firmware/stm32h747_disco/test_vectors/deployable_v0_policy_vector.json
+firmware/stm32h747_disco/test_vectors/gait_quality_v2_30k_policy_vector.json
 ```
 
 STM32H747 M7 smoke ELF:
@@ -160,7 +177,7 @@ Current ELF size:
 text: 30616
 data: 1072
 bss: 5944
-sha256: 0cdb372a613850d1c65a7ce832f5ed4df7423c34e6b22a705851b0c1c44925bb
+sha256: c1e2a67515b6208136d5557f509f3b926c518713838794b0b89e7b029f748136
 ```
 
 ST Edge AI generation summary for the selected ONNX:
@@ -178,11 +195,9 @@ estimated total RAM: 512 B
 
 - The training metrics alone are misleading for this run. The 100k continuation
   looked promising early, then regressed. Always select via evaluation reports.
-- The current policy moves forward in simulation, but visual quality still needs
-  review. Prior observations suggest the gait may rely too much on lower-leg
-  motion rather than coordinated hip/thigh motion.
-- Deployment to hardware should wait until the simulated motion is visually
-  acceptable and the action distribution is reviewed.
+- The current policy moves forward in simulation and passed the first visual
+  review. Hardware deployment should still start conservatively because the
+  rear-leg contact duty is not clearly better than the previous baseline.
 - A diagnostic gait-quality run was tested after contact analysis:
 
 ```text
@@ -210,11 +225,9 @@ the next reward/control iteration, not as the new deployable candidate.
 
 ## Suggested Next Checks
 
-1. Inspect the current candidate video and the v2_30k tracking video side by
-   side.
-2. Run a longer deterministic evaluation, such as 30 or 50 episodes, for
-   v2_30k.
-3. If v2_30k passes visual review and longer evaluation, export ONNX and rebuild
-   the STM32 smoke ELF from that checkpoint.
-4. If visual quality is still poor, try a v3 run with explicit rear contact duty
-   shaping without the v1 rear-contact bonus.
+1. Keep v2_30k as the default candidate for hardware bring-up.
+2. Prepare the Bittle/OpenCat command path and a conservative safety envelope.
+3. When hardware arrives, run standing/neutral command checks before any walking
+   command.
+4. If hardware gait quality is poor, fall back to the 10k baseline and try a v3
+   reward variant with explicit rear contact duty shaping.

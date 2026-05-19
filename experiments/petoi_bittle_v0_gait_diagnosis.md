@@ -307,8 +307,11 @@ v2_30k diagnostics:
 ```text
 video: assets/videos/petoi_bittle_v0_gait_quality_v2_30k_rollout_track_matte.mp4
 eval: experiments/reports/petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2_30000_eval_5ep.json
+eval_30ep: experiments/reports/petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2_30000_eval_30ep.json
 contact: experiments/reports/gait_contact_analysis/petoi_bittle_v0_gait_quality_v2_30k_5seed_contact_summary.json
 action: experiments/reports/action_analysis/petoi_bittle_v0_gait_quality_v2_30k_action_summary.json
+onnx: models/onnx/petoi_bittle_v0_gait_quality_v2_30k_actor.onnx
+policy_vector: firmware/stm32h747_disco/test_vectors/gait_quality_v2_30k_policy_vector.json
 
 distance_x_mean: 1.4290 +/- 0.0102 m
 contact_slip_speed_mean: 0.1044 +/- 0.0008 m/s
@@ -331,10 +334,30 @@ Interpretation:
 4. The learned residual action is balanced between shoulder/hip and knee/lower
    leg by normalized magnitude.
 5. The 50k final checkpoint must not be used; the run regressed after 30k.
+6. After visual review, v2_30k was exported to ONNX and rebuilt through the
+   STM32H747 M7 smoke path.
 ```
 
-v2_30k should be visually reviewed with the tracking-camera video before any
-ONNX export or STM32 rebuild.
+30-episode deterministic evaluation:
+
+```text
+reward_mean: 666.5192 +/- 24.3102
+distance_x_mean: 1.4234 +/- 0.0223 m
+fall_rate: 0.0
+termination_reasons: timeout=30
+```
+
+Deployment export/build checks:
+
+```text
+ONNX torch_vs_onnx_max_abs_diff: 1.1920928955078125e-07
+ONNX sb3_vs_onnx_max_abs_diff: 1.7881393432617188e-07
+policy_vector max_abs_diff: 0.0
+ST Edge AI estimated flash: 27794 B
+ST Edge AI estimated RAM: 512 B
+STM32H747 M7 smoke ELF text/data/bss: 30616 / 1072 / 5944
+STM32H747 M7 smoke ELF sha256: c1e2a67515b6208136d5557f509f3b926c518713838794b0b89e7b029f748136
+```
 
 ## Recommended Next Experiments
 

@@ -13,8 +13,11 @@ retraining:
 training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0/final_model.zip
 training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue_10000_steps.zip
 training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2_30000_steps.zip
+models/onnx/petoi_bittle_v0_gait_quality_v2_30k_actor.onnx
+models/reports/petoi_bittle_v0_gait_quality_v2_30k_actor_onnx.json
 models/onnx/petoi_bittle_v0_deployable_v0_best_actor.onnx
 models/reports/petoi_bittle_v0_deployable_v0_best_actor_onnx.json
+firmware/stm32h747_disco/test_vectors/gait_quality_v2_30k_policy_vector.json
 experiments/reports/checkpoint_eval/
 experiments/reports/action_analysis/
 experiments/reports/gait_contact_analysis/
@@ -25,13 +28,14 @@ experiments/gait_baseline_comparison.md
 docs/hardware_bringup_checklist.md
 ```
 
-The 10k continuation checkpoint is the current best policy candidate. The
-100k continuation `final_model.zip` should be backed up only as experiment
-evidence, not as the preferred deployment model.
+The gait_quality_v2 30k checkpoint is the current deployable simulation
+candidate. Keep its ONNX export, ONNX parity report, policy vector, evaluation
+reports, and tracking-camera video together.
 
-The gait_quality_v2 30k checkpoint is the current best simulation candidate
-under review. Keep it with its evaluation reports and tracking-camera video
-until it is either promoted to deployment or superseded.
+The 10k continuation checkpoint is the previous deployable baseline and should
+be retained as rollback/comparison evidence. The 100k continuation
+`final_model.zip` should be backed up only as experiment evidence, not as the
+preferred deployment model.
 
 ## Useful To Keep
 
@@ -68,7 +72,7 @@ bash scripts/setup_env.sh
 bash scripts/setup_stedgeai.sh
 bash scripts/check_env.sh
 bash scripts/build_petoi_mjcf.sh
-bash scripts/generate_stedgeai.sh models/onnx/petoi_bittle_v0_deployable_v0_best_actor.onnx
+bash scripts/generate_stedgeai.sh models/onnx/petoi_bittle_v0_gait_quality_v2_30k_actor.onnx
 bash scripts/prepare_stm32_cmsis.sh
 bash scripts/prepare_stm32_ai_runtime.sh
 bash scripts/build_stm32_m7_smoke.sh
@@ -100,8 +104,8 @@ The script writes to:
 artifacts/rl_petoi_artifacts_<utc-time>_<git-sha>.tar.*
 ```
 
-It includes the current best checkpoint, baseline checkpoint, ONNX export,
-reports, policy vector, current rollout video, and status documents. It also
+It includes the current checkpoint, previous baseline checkpoint, ONNX exports,
+reports, policy vectors, current rollout video, comparison videos, and status documents. It also
 adds `ARTIFACT_MANIFEST.txt` with the git SHA, selected checkpoint, included
 paths, and SHA-256 hashes.
 
