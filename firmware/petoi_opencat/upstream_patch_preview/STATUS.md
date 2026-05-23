@@ -16,6 +16,8 @@ Current state:
   - decodes 8 target joint angles in radians
   - converts them to OpenCat degrees
   - rejects non-finite or out-of-`angleLimit[]` targets
+  - returns diagnostic high bits on rejected targets while keeping the response
+    as a normal `RL_SET_TARGETS` status frame
   - applies accepted targets through `calibratedPWM(...)`
 - the corresponding real-tree diff was captured in:
   - `0005-opencat-rl-get-state-real-tree.patch`
@@ -36,10 +38,15 @@ Verified so far:
   - `ArduinoJson 7.4.3`
   - `pyserial 3.5`
 - compile result:
-  - flash: `1295053 / 1310720 bytes`
+  - flash: `1295153 / 1310720 bytes`
   - RAM: `50712 / 327680 bytes`
 - the same compile result was reproduced through:
   - `bash scripts/compile_opencat_rl_get_state.sh`
+- hardware smoke on Bittle X V2:
+  - stock firmware rejected `RL_GET_STATE` as an unknown command before flashing
+  - patched firmware returned stable `telemetry_valid` `RL_GET_STATE`
+  - generated index `0` neutral target returned `command_accepted` after the
+    bring-up neutral was reset to the accepted OpenCat hold pose
 
 Not verified yet:
 

@@ -39,6 +39,18 @@ The generated first-day test vectors are:
 protocol/test_vectors/bittle_bringup_v0.json
 ```
 
+The firmware flash/read-only telemetry gate is:
+
+```text
+docs/bittle_flash_bringup.md
+```
+
+The reverse SSH recovery note for a replacement cloud server is:
+
+```text
+docs/reverse_ssh_recovery.md
+```
+
 ## Before Power-On
 
 ```text
@@ -56,6 +68,13 @@ protocol/test_vectors/bittle_bringup_v0.json
 [ ] Confirm official app or serial console can command basic poses.
 [ ] Confirm neutral/stand pose does not bind any servo.
 [ ] Save any factory calibration values before changing firmware.
+[ ] Run the local software preflight before flashing patched OpenCat firmware.
+```
+
+Preflight is read-only with respect to the robot:
+
+```bash
+bash scripts/bittle_preflight_check.sh --port /dev/ttyACM0 --compile
 ```
 
 ## Communication Bring-Up

@@ -17,14 +17,14 @@
     "shlrt_joint"
   ],
   "neutral_pose_rad": [
-    0.2,
-    1.4,
-    0.2,
-    1.4,
-    0.2,
-    1.4,
-    0.2,
-    1.4
+    1.24791,
+    1.24791,
+    1.24791,
+    1.24791,
+    -0.951204,
+    -0.951204,
+    -0.951204,
+    -0.951204
   ],
   "first_day_soft_limit_rad": {
     "max_abs_delta_from_neutral": 0.12,
@@ -48,6 +48,8 @@
   },
   "notes": [
     "These are first-day host-side limits, not final measured Bittle joint limits.",
+    "The first-day neutral pose is the first accepted OpenCat hold pose measured on the Bittle X V2 after RL_SET_TARGETS bring-up, not the simulation residual-policy neutral pose.",
+    "The neutral target uses half-degree values so OpenCat's integer currentAng truncation does not drift by one degree on repeated no-op commands.",
     "Servo ID, sign, zero offset, and final min/max angle must be filled after OpenCat/Bittle mapping is verified.",
     "Do not run the learned walking policy until neutral, single-joint, and low-amplitude scripted targets are accepted by hardware."
   ]

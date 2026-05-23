@@ -188,7 +188,19 @@ def read_exact(port, size: int) -> bytes:
 
 
 def read_serial_frame(port) -> DecodedFrame:
-    header = read_exact(port, HEADER_STRUCT.size)
+    header = bytearray()
+    while bytes(header) != MAGIC:
+        byte = port.read(1)
+        if not byte:
+            raise TimeoutError("timed out while waiting for RL response magic")
+        if byte == MAGIC[:1]:
+            header = bytearray(byte)
+        elif header and byte == MAGIC[1:2]:
+            header.append(byte[0])
+        else:
+            header.clear()
+    header.extend(read_exact(port, HEADER_STRUCT.size - len(MAGIC)))
+    header = bytes(header)
     magic, version, _message_type, _sequence_id, payload_len = HEADER_STRUCT.unpack(header)
     if magic != MAGIC:
         raise ValueError(f"unexpected response magic: {magic!r}")
@@ -201,6 +213,8 @@ def read_serial_frame(port) -> DecodedFrame:
 def send_serial_request(port, frame: bytes, rl_token: bytes = DEFAULT_RL_TOKEN) -> DecodedFrame:
     if len(rl_token) != 1:
         raise ValueError("rl_token must be exactly one byte")
+    if hasattr(port, "reset_input_buffer"):
+        port.reset_input_buffer()
     port.write(rl_token + frame)
     port.flush()
     return read_serial_frame(port)

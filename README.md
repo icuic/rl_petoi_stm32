@@ -206,6 +206,24 @@ source .venv/bin/activate
 bash scripts/check_env.sh
 ```
 
+如果新云服务器需要立即重新连回接着 Bittle 的本地 Ubuntu，以本地 Ubuntu
+现有 `/usr/local/frp/frpc.toml` 中的 `auth.token` 为准。先从本地记录或
+本地配置文件复制这个 token，然后在新云服务器上启动 FRP 反向 SSH relay：
+
+```bash
+FRP_TOKEN="本地frpc.toml中的auth.token" \
+bash scripts/setup_reverse_ssh_frp.sh server --print-client --start
+```
+
+然后在本地 Ubuntu 的 `/usr/local/frp/frpc.toml` 中把 `serverAddr` 改成新
+云服务器公网 IP，并重启 `frpc`：
+
+```bash
+sudo systemctl restart frpc
+```
+
+不要把 FRP token 提交到 Git。详见 `docs/reverse_ssh_recovery.md`。
+
 其中：
 
 - `install_codex.sh`：安装 Codex CLI 并开启远程连接。
