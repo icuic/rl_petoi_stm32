@@ -10,7 +10,9 @@
 
 ## Current Status
 
-当前仓库已推进到 **gait_quality_v2 30k 策略候选 + STM32H747 M7 smoke ELF** 阶段。实物 Bittle X V2 到手前，当前重点是准备硬件联调链路与安全边界；真机部署仍应从站立、零动作、低幅度动作开始逐步推进。
+新对话/新服务器接手时，优先阅读：`docs/handoff.md`。
+
+当前仓库已推进到 **gait_quality_v2 30k 策略候选 + STM32H747 M7 smoke ELF + Bittle X V2 OpenCat RL 扩展 bring-up** 阶段。Bittle X V2 已刷入 patched OpenCatEsp32 固件，`RL_GET_STATE` 已返回 `telemetry_valid`，第一条保守 neutral `RL_SET_TARGETS` 已返回 `command_accepted`。后续真机部署仍应从单关节、低幅度动作逐步推进，不能直接运行 learned walking policy。
 
 - 当前推荐训练配置：`training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2.yaml`
 - 当前推荐 checkpoint：`training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2_30000_steps.zip`
@@ -23,6 +25,7 @@
 - 旧 10k deployable 策略保留为回退基线：`training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue/ppo_petoi_bittle_v0_trot_residual_deployable_v0_100k_continue_10000_steps.zip`
 - 已完成 gait_quality_v1/v2 诊断实验：v1 改善后腿滑移但牺牲前进距离；v2 30k 在仿真距离、接触滑移比例和视觉观感上是当前更好的折中。详见 `experiments/petoi_bittle_v0_gait_diagnosis.md`。
 - 状态详情见：`docs/training_status.md`
+- 新服务器 / 新对话交接见：`docs/handoff.md`
 - Gait 诊断见：`experiments/petoi_bittle_v0_gait_diagnosis.md`
 - Hand gait / RL 对照实验见：`experiments/gait_baseline_comparison.md`
 - 硬件到手前 checklist：`docs/hardware_bringup_checklist.md`
