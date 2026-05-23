@@ -110,3 +110,15 @@ feedback after command: [71, 71, 71, 71, -54, -54, -54, -54] degrees
 The half-degree target values are intentional. OpenCat stores `currentAng[]` as
 integers, so exact integer-degree float targets can drift by one degree when
 converted back into that cache.
+
+## Next Hardware Session
+
+The Bittle was not available after the 2026-05-23 morning session, so further
+motion tests should resume with the single-joint mapping log:
+
+```text
+docs/bittle_joint_mapping_log.md
+```
+
+The next live motion test should start at index `1`, not at a low-amplitude gait
+phase or learned policy.

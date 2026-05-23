@@ -30,6 +30,8 @@ local Ubuntu host:
 Bittle:
   model: Petoi Bittle X V2
   onboard firmware: patched OpenCatEsp32 with RL serial extension
+  current availability: not available after the 2026-05-23 morning session;
+    a colleague took the robot back for the afternoon
 ```
 
 Do not assume the current cloud server is permanent. Its replacement path is in
@@ -162,6 +164,7 @@ ssh -p 60022 ubuntu@127.0.0.1 'hostname && whoami && pwd'
 
 Continue hardware bring-up with single-joint tests from
 `protocol/test_vectors/bittle_bringup_v0.json`, starting at index `1`.
+Use `docs/bittle_joint_mapping_log.md` as the live observation table.
 
 For each test:
 

@@ -26,6 +26,7 @@
 - 已完成 gait_quality_v1/v2 诊断实验：v1 改善后腿滑移但牺牲前进距离；v2 30k 在仿真距离、接触滑移比例和视觉观感上是当前更好的折中。详见 `experiments/petoi_bittle_v0_gait_diagnosis.md`。
 - 状态详情见：`docs/training_status.md`
 - 新服务器 / 新对话交接见：`docs/handoff.md`
+- 下一次真机关节映射记录表见：`docs/bittle_joint_mapping_log.md`
 - Gait 诊断见：`experiments/petoi_bittle_v0_gait_diagnosis.md`
 - Hand gait / RL 对照实验见：`experiments/gait_baseline_comparison.md`
 - 硬件到手前 checklist：`docs/hardware_bringup_checklist.md`

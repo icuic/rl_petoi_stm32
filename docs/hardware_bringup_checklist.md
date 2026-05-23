@@ -51,6 +51,12 @@ The reverse SSH recovery note for a replacement cloud server is:
 docs/reverse_ssh_recovery.md
 ```
 
+The live joint-mapping log for the next hardware session is:
+
+```text
+docs/bittle_joint_mapping_log.md
+```
+
 ## Before Power-On
 
 ```text
@@ -123,7 +129,7 @@ bash scripts/generate_bittle_bringup_vectors.sh
 List the planned neutral, single-joint, and low-amplitude scripted targets:
 
 ```bash
-bash scripts/bittle_bringup_probe.sh --list
+bash scripts/bittle_bringup_probe.sh --plan
 ```
 
 Dry-run the neutral target frame:
