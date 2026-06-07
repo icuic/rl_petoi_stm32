@@ -1,0 +1,59 @@
+{
+  "version": "bittle_stand_safety_v0",
+  "purpose": "Stand-up host-side limits for Petoi Bittle X V2 policy-in-loop support tests.",
+  "source": {
+    "skill": "kup",
+    "measured_at": "2026-06-07",
+    "note": "OpenCat official up posture echoed up/k and GET_STATE reported all 8 feedback joints near 0.558505 rad."
+  },
+  "policy_candidate": {
+    "config": "training/configs/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2.yaml",
+    "checkpoint": "training/checkpoints/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2/ppo_petoi_bittle_v0_trot_residual_deployable_v0_gait_quality_v2_30000_steps.zip",
+    "onnx": "models/onnx/petoi_bittle_v0_gait_quality_v2_30k_actor.onnx"
+  },
+  "joint_order": [
+    "shrfs_joint",
+    "shrft_joint",
+    "shrrs_joint",
+    "shrrt_joint",
+    "shlfs_joint",
+    "shlft_joint",
+    "shlrs_joint",
+    "shlrt_joint"
+  ],
+  "neutral_pose_rad": [
+    0.558505,
+    0.558505,
+    0.558505,
+    0.558505,
+    0.558505,
+    0.558505,
+    0.558505,
+    0.558505
+  ],
+  "first_day_soft_limit_rad": {
+    "max_abs_delta_from_neutral": 0.12,
+    "max_single_joint_test_delta": 0.035,
+    "max_low_amplitude_gait_delta": 0.04,
+    "max_target_step_delta": 0.035
+  },
+  "runtime_abort_gate": {
+    "max_abs_roll_rad": 0.35,
+    "max_abs_pitch_rad": 0.35,
+    "telemetry_timeout_ms": 100,
+    "command_response_timeout_ms": 100,
+    "require_feedback_valid": false,
+    "require_command_accepted": true
+  },
+  "low_amplitude_reference": {
+    "phase_count": 8,
+    "shoulder_amplitude_rad": 0.018,
+    "knee_amplitude_rad": 0.022,
+    "duty_bias": 0.0
+  },
+  "notes": [
+    "This profile is for support-stand testing around OpenCat's official up posture.",
+    "It is not yet a final sim-to-real coordinate calibration.",
+    "Keep the robot supported and retain the host-side roll/pitch abort gate."
+  ]
+}

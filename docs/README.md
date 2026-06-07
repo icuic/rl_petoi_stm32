@@ -4,3 +4,4 @@
 
 - `deployable_v0_interface.md`：冻结当前真机可部署 policy 的 23 维 observation、8 维 action、字段顺序和状态归属。
 - `rl_serial_protocol_v0.md`：定义基于 OpenCatEsp32 扩展的 RL 串口协议路线，区分正式 `RL_STEP` 与 bring-up 调试命令。
+- `stm32_bluetooth_link.md`：记录 Petoi 双模蓝牙串口模块接到 STM32H747I-DISCO UART8 的接线、波特率和 STM32 pipeline bring-up 顺序。

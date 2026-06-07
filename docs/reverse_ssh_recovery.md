@@ -105,6 +105,38 @@ Keep this process running during hardware debugging. If using a firewall or
 cloud security group, allow inbound TCP `7000` from the local network that runs
 `frpc`.
 
+### User-Level Supervisor On Clouds Without systemd
+
+If the cloud server cannot use `systemd`, run `frps` under the project-local
+supervisor config:
+
+```bash
+supervisord -c /home/ubuntu/rl_petoi_stm32/.tools/supervisor/frps.conf
+supervisorctl -c /home/ubuntu/rl_petoi_stm32/.tools/supervisor/frps.conf status
+```
+
+Expected status:
+
+```text
+frps                             RUNNING
+```
+
+Useful management commands:
+
+```bash
+supervisorctl -c /home/ubuntu/rl_petoi_stm32/.tools/supervisor/frps.conf restart frps
+supervisorctl -c /home/ubuntu/rl_petoi_stm32/.tools/supervisor/frps.conf tail frps
+supervisorctl -c /home/ubuntu/rl_petoi_stm32/.tools/supervisor/frps.conf shutdown
+```
+
+Project-local logs:
+
+```text
+.tools/supervisor/supervisord.log
+.tools/frp/logs/frps.stdout.log
+.tools/frp/logs/frps.stderr.log
+```
+
 ## Local Ubuntu frpc Setup
 
 On the local Ubuntu host, point `frpc` at the new cloud public IP:

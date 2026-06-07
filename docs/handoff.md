@@ -14,6 +14,10 @@ smoke build, and a patched Petoi OpenCat firmware path that has already flashed
 successfully onto a Bittle X V2 and accepted the first conservative neutral
 `RL_SET_TARGETS` command.
 
+2026-06-07 update: the tabletop host-side `wkF + RL residual` baseline now
+passes at normal-speed direction and should be used as the first STM32 pipeline
+handoff target.
+
 ## Current Hardware Topology
 
 ```text
@@ -160,10 +164,56 @@ Verify from the new cloud server:
 ssh -p 60022 ubuntu@127.0.0.1 'hostname && whoami && pwd'
 ```
 
+This cloud server may not support `systemd` for long-running user services. Use
+the project-local supervisor config for `frps`:
+
+```bash
+supervisord -c /home/ubuntu/rl_petoi_stm32/.tools/supervisor/frps.conf
+supervisorctl -c /home/ubuntu/rl_petoi_stm32/.tools/supervisor/frps.conf status
+```
+
 ## Recommended Next Step
 
-Continue hardware bring-up with single-joint tests from
-`protocol/test_vectors/bittle_bringup_v0.json`, starting at index `1`.
+For the afternoon STM32 session, first reproduce the latest host-side baseline
+numerically on STM32 before sending STM32-generated motion to Bittle:
+
+Before motion, wire and validate the Petoi dual-mode Bluetooth module as the
+STM32 robot link. Use `docs/stm32_bluetooth_link.md`:
+
+```text
+STM32H747I-DISCO UART8:
+  D1 / PJ8 = UART8_TX
+  D0 / PJ9 = UART8_RX
+  baud: 115200 8N1
+
+Petoi Bluetooth:
+  module TXD -> STM32 D0 / PJ9 / UART8_RX
+  module RXD <- STM32 D1 / PJ8 / UART8_TX
+  module VCC -> Arduino +5V
+  module GND -> Arduino GND
+```
+
+```text
+host baseline:
+  runner: scripts/bittle_policy_runner.sh
+  reference: wkF
+  onnx: models/onnx/petoi_bittle_v0_gait_quality_v2_30k_actor.onnx
+  profile: stand-up
+  wkf scale: 0.6
+  stride: 1
+  period: 22 ms
+  ramp: 10 steps
+  residual scale: 1.0
+  steps: 348
+  state_every: 12
+  result: 360 accepted target writes, max roll/pitch about 0.140/0.118 rad
+```
+
+Capture or regenerate host observations/actions/targets, run the same
+observations through STM32 inference, compare STM32 actions and clamped targets
+against the host runner, then re-run this 348-step tabletop baseline with STM32
+in the loop.
+
 Use `docs/bittle_joint_mapping_log.md` as the live observation table.
 
 For each test:

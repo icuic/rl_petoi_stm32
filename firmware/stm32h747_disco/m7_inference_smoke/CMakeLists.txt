@@ -7,7 +7,15 @@ set(STEDGEAI_STAGING_DIR "${FIRMWARE_ROOT}/App/inference/stedgeai" CACHE PATH "P
 set(STM32_CMSIS_DIR "${FIRMWARE_ROOT}/App/cmsis/stm32h7" CACHE PATH "Prepared STM32H747 CMSIS staging directory")
 set(STEDGEAI_GENERATED_DIR "${STEDGEAI_STAGING_DIR}/generated")
 set(STEDGEAI_INCLUDE_DIR "${STEDGEAI_STAGING_DIR}/include")
-set(STEDGEAI_RUNTIME_LIB "${STEDGEAI_STAGING_DIR}/lib/gcc/stm32h7/NetworkRuntime1200_CM7_GCC.a")
+file(GLOB STEDGEAI_RUNTIME_LIB_CANDIDATES
+  "${STEDGEAI_STAGING_DIR}/lib/gcc/stm32h7/NetworkRuntime*_CM7_GCC.a"
+)
+list(SORT STEDGEAI_RUNTIME_LIB_CANDIDATES)
+if(STEDGEAI_RUNTIME_LIB_CANDIDATES)
+  list(GET STEDGEAI_RUNTIME_LIB_CANDIDATES -1 STEDGEAI_RUNTIME_LIB)
+else()
+  set(STEDGEAI_RUNTIME_LIB "${STEDGEAI_STAGING_DIR}/lib/gcc/stm32h7/NetworkRuntime_CM7_GCC_NOT_FOUND.a")
+endif()
 set(LINKER_SCRIPT "${CMAKE_CURRENT_LIST_DIR}/stm32h747xih_m7_smoke.ld")
 
 foreach(required_file
@@ -28,6 +36,7 @@ add_executable(m7_inference_smoke.elf
   "${STM32_CMSIS_DIR}/startup/startup_stm32h747xihx.s"
   "${STM32_CMSIS_DIR}/src/system_stm32h7xx.c"
   main.c
+  "${FIRMWARE_ROOT}/rl_uart8_transport_v0.c"
   "${FIRMWARE_ROOT}/rl_stedgeai_policy_v0.c"
   "${STEDGEAI_GENERATED_DIR}/network.c"
   "${STEDGEAI_GENERATED_DIR}/network_data.c"

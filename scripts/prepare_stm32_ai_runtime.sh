@@ -49,7 +49,8 @@ copy_generated_network() {
 
 copy_runtime_library() {
   local source_dir="${STEDGEAI_ROOT}/Middlewares/ST/AI/Lib/GCC/STM32H7"
-  local runtime_lib="${source_dir}/NetworkRuntime1200_CM7_GCC.a"
+  local runtime_lib
+  runtime_lib="$(find "${source_dir}" -maxdepth 1 -type f -name 'NetworkRuntime*_CM7_GCC.a' | sort | tail -n 1 || true)"
 
   require_file "${runtime_lib}"
   mkdir -p "${LIB_DEST}"
