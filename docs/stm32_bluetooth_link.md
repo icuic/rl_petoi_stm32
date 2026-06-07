@@ -121,6 +121,37 @@ The first pass should prove transport before policy control.
     baseline.
 ```
 
+2026-06-07 route-3 status:
+
+```text
+[x] Petoi ESP32 BLE client discovers and connects to JDY-23 `PetoiBLE-3671`.
+[x] JDY-23 service/characteristic confirmed as FFE0/FFE1.
+[x] ASCII `d\n` path verified over STM32 UART8 -> JDY-23 -> BLE -> Petoi.
+[x] Petoi OpenCatEsp32 BLE client patched for binary-safe `Y + RL frame` input.
+[x] Patched Petoi firmware compiled and uploaded on local Ubuntu `/dev/ttyACM1`.
+[x] STM32 M7 smoke ELF builds with five read-only UART8 `RL_GET_STATE` probes.
+[x] STM32 M7 smoke ELF flashed through local Ubuntu OpenOCD/ST-LINK.
+[x] `g_uart8_rl_get_state_ok_count = 5`, `g_uart8_rl_transport_rx_bytes = 320`.
+[x] Last response begins with `52 4c 00 81`, the `RL_GET_STATE_RESP` header.
+```
+
+Protocol direction detail:
+
+```text
+STM32 -> JDY-23 -> Petoi:  Y + RL frame
+Petoi -> JDY-23 -> STM32:  RL frame
+```
+
+The Petoi response intentionally omits `Y`; the STM32 transport reads the
+response header starting at the `RL` magic.
+
+The Petoi BLE client must not write the full 64-byte response as one BLE write.
+The passing route-3 smoke used deferred main-loop writes split as:
+
+```text
+20 bytes + 20 bytes + 20 bytes + 4 bytes
+```
+
 ## STM32 Pipeline Target
 
 The STM32 transport should reproduce the host-side baseline recorded on

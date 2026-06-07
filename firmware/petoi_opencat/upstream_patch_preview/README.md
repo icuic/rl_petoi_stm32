@@ -10,6 +10,7 @@
 - `0004-opencat-rl-get-state-skeleton.patch`
 - `0005-opencat-rl-get-state-real-tree.patch`
 - `0006-opencat-add-rl-helper-files.patch`
+- `0007-opencat-ble-client-rl-frame.patch`
 
 这些 patch 目前仍是 preview：
 
@@ -30,3 +31,10 @@
 
 `0005-opencat-rl-get-state-real-tree.patch` 和 `0006-opencat-add-rl-helper-files.patch` 是基于本地拉取的官方源码树实际落 patch 后回收出的真实 diff，
 用于后续继续收敛编译问题和替换 telemetry stub。
+
+`0007-opencat-ble-client-rl-frame.patch` 接入 BLE client notify callback：
+
+- STM32/JDY-23 -> Petoi 的请求仍是 `Y + RL frame`
+- Petoi -> STM32/JDY-23 的响应是裸 `RL frame`
+- Petoi 响应先在 notify callback 中缓存，再由主循环按 20 字节分片写回 BLE
+- 普通 ASCII BLE 命令继续走原 `String` parser fallback

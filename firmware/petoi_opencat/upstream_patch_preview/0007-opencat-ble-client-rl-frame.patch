@@ -1,0 +1,261 @@
+diff --git a/src/OpenCat.h b/src/OpenCat.h
+index 70bb7a7..e8fc195 100644
+--- a/src/OpenCat.h
++++ b/src/OpenCat.h
+@@ -416,6 +416,8 @@ size_t rlResponseLen = 0;
+ float rlPrevYprDeg[3] = {};
+ unsigned long rlPrevTelemetryMicros = 0;
+ bool rlTelemetryHasPrev = false;
++typedef void (*RlResponseWriter)(const uint8_t* data, size_t len, void* userData);
++bool HandleBufferedRlFrame(RlResponseWriter writer, void* userData);
+ 
+ // control related variables
+ #define IDLE_TIME 1000
+diff --git a/src/bleClient.h b/src/bleClient.h
+index 0a8931e..713a24e 100644
+--- a/src/bleClient.h
++++ b/src/bleClient.h
+@@ -18,6 +18,9 @@ BLERemoteDescriptor* pRD;
+ bool btReceiveDone = false;
+ String btRxLoad = "";
+ uint8_t dataIndicate[2] = { 0x02, 0x00 };
++bool bleRlFrameInProgress = false;
++uint8_t bleRlPendingResponse[rl_serial_v0::kMaxFrameSize] = {};
++size_t bleRlPendingResponseLen = 0;
+ // String serverBtDeviceName = "";
+ 
+ void bleParser(String raw) {
+@@ -34,8 +37,81 @@ void PetoiBtConnected() {
+ void PetoiBtDisconnected() {
+ }
+ 
++void bleWriteRlResponse(const uint8_t* data, size_t len, void* userData) {
++  (void)userData;
++  if (data != nullptr && len > 0 && len <= sizeof(bleRlPendingResponse)) {
++    Serial.print("BLE RL response bytes: ");
++    Serial.println(len);
++    memcpy(bleRlPendingResponse, data, len);
++    bleRlPendingResponseLen = len;
++  } else {
++    Serial.println("BLE RL response dropped");
++  }
++}
++
++void processBleRlPendingResponse() {
++  if (pRemoteCharacteristicTx == nullptr || bleRlPendingResponseLen == 0) {
++    return;
++  }
++
++  size_t offset = 0;
++  while (offset < bleRlPendingResponseLen) {
++    const size_t chunkLen = (bleRlPendingResponseLen - offset) > 20 ? 20 : (bleRlPendingResponseLen - offset);
++    Serial.print("BLE RL response chunk: ");
++    Serial.println(chunkLen);
++    pRemoteCharacteristicTx->writeValue(bleRlPendingResponse + offset, chunkLen, false);
++    offset += chunkLen;
++    delay(10);
++  }
++  bleRlPendingResponseLen = 0;
++}
++
++bool handleBleRlFrameBytes(const uint8_t* data, size_t length) {
++  if (data == nullptr || length == 0) {
++    return false;
++  }
++
++  size_t offset = 0;
++  if (!bleRlFrameInProgress) {
++    if (data[0] != T_RL_FRAME) {
++      return false;
++    }
++    rlFrameReader.Reset();
++    bleRlFrameInProgress = true;
++    Serial.println("BLE RL token");
++    offset = 1;
++  }
++
++  if (offset >= length) {
++    return true;
++  }
++
++  rl_serial_v0::FrameView frame;
++  const auto feedStatus = rlFrameReader.Feed(data + offset, length - offset, &frame);
++  if (feedStatus == rl_frame_reader_v0::FeedStatus::kNeedMore) {
++    Serial.print("BLE RL need more, bytes: ");
++    Serial.println(length - offset);
++    return true;
++  }
++
++  if (feedStatus == rl_frame_reader_v0::FeedStatus::kFrameReady) {
++    Serial.println("BLE RL frame ready");
++    HandleBufferedRlFrame(bleWriteRlResponse, nullptr);
++  } else {
++    Serial.print("BLE RL frame rejected: ");
++    Serial.println((int)feedStatus);
++  }
++
++  rlFrameReader.Reset();
++  bleRlFrameInProgress = false;
++  return true;
++}
++
+ static void btPetoiNotifyCallback(BLERemoteCharacteristic* pBLERemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify) {
+   btReceiveDone = false;
++  if (handleBleRlFrameBytes(pData, length)) {
++    return;
++  }
+   if (length > 0) {
+     btRxLoad = "";
+     for (int i = 0; i < length; i++)
+@@ -80,6 +156,9 @@ class btPetoiClientCallback : public BLEClientCallbacks {
+     btConnected = false;
+     btReceiveDone = false;
+     btRxLoad = "";
++    bleRlFrameInProgress = false;
++    bleRlPendingResponseLen = 0;
++    rlFrameReader.Reset();
+     PetoiBtDisconnected();
+     lastClientConnectionChange = currentTime;
+   }
+@@ -233,6 +312,9 @@ void PetoiBtStopScan() {
+   btConnected = false;
+   btReceiveDone = false;
+   btRxLoad = "";
++  bleRlFrameInProgress = false;
++  bleRlPendingResponseLen = 0;
++  rlFrameReader.Reset();
+   
+   // Reset scan-related flags
+   doScan = false;
+@@ -264,6 +346,7 @@ void checkBtScan() {
+     }
+     doConnect = false;
+   }
++  processBleRlPendingResponse();
+ }
+ 
+ void bleClientSetup() {
+diff --git a/src/reaction.h b/src/reaction.h
+index e501228..f85b2c0 100644
+--- a/src/reaction.h
++++ b/src/reaction.h
+@@ -338,6 +338,119 @@ bool lowBattery() {
+ }
+ #endif
+ 
++bool HandleBufferedRlFrame(RlResponseWriter writer, void* userData) {
++  rl_serial_v0::FrameView frame;
++  if (rl_serial_v0::DecodeFrame(rlFrameReader.frame_data(), rlFrameReader.frame_size(), &frame) !=
++      rl_serial_v0::ParseError::kOk) {
++    rlFrameReader.Reset();
++    return false;
++  }
++
++  if (frame.message_type == rl_serial_v0::kMsgSetTargetsReq) {
++    float targets[rl_serial_v0::kTargetCount] = {};
++    bool targetsAccepted =
++        rl_serial_v0::DecodeTargetsPayload(frame, targets) == rl_serial_v0::ParseError::kOk;
++    byte rejectedTargetIndex = 0xFF;
++    byte rejectedJointIndex = 0xFF;
++    byte rejectedReason = 0;
++
++    float targetDeg[rl_serial_v0::kTargetCount] = {};
++    for (byte i = 0; i < rl_serial_v0::kTargetCount && targetsAccepted; i++) {
++      const byte jointIndex = DOF - WALKING_DOF + i;
++      targetDeg[i] = targets[i] * degPerRad;
++      if (targetDeg[i] != targetDeg[i]) {
++        targetsAccepted = false;
++        rejectedTargetIndex = i;
++        rejectedJointIndex = jointIndex;
++        rejectedReason = 1;
++      } else if (targetDeg[i] < angleLimit[jointIndex][0]) {
++        targetsAccepted = false;
++        rejectedTargetIndex = i;
++        rejectedJointIndex = jointIndex;
++        rejectedReason = 2;
++      } else if (targetDeg[i] > angleLimit[jointIndex][1]) {
++        targetsAccepted = false;
++        rejectedTargetIndex = i;
++        rejectedJointIndex = jointIndex;
++        rejectedReason = 3;
++      }
++    }
++
++    if (targetsAccepted) {
++      for (byte i = 0; i < rl_serial_v0::kTargetCount; i++) {
++        calibratedPWM(DOF - WALKING_DOF + i, targetDeg[i]);
++      }
++    }
++
++    uint16_t status =
++        targetsAccepted ? rl_serial_v0::kStatusCommandAccepted : rl_serial_v0::kStatusInternalFault;
++    if (!targetsAccepted && rejectedJointIndex < DOF) {
++      status |= (uint16_t)(rejectedJointIndex & 0x0F) << 8;
++      status |= (uint16_t)(rejectedReason & 0x0F) << 12;
++    }
++    rlResponseLen =
++        rl_serial_v0::EncodeSetTargetsResponse(frame.sequence_id, status, rlResponse, sizeof(rlResponse));
++    if (rlResponseLen > 0 && writer != nullptr) {
++      writer(rlResponse, rlResponseLen, userData);
++    }
++    rlFrameReader.Reset();
++    return rlResponseLen > 0;
++  }
++
++  if (frame.message_type != rl_serial_v0::kMsgGetStateReq) {
++    rlFrameReader.Reset();
++    return false;
++  }
++
++  rl_serial_v0::TelemetryState state;
++  state.roll = ypr[2] * radPerDeg;
++  state.pitch = ypr[1] * radPerDeg;
++
++  const unsigned long nowMicros = micros();
++  const float dt = (rlTelemetryHasPrev && nowMicros != rlPrevTelemetryMicros)
++                       ? (nowMicros - rlPrevTelemetryMicros) / 1000000.0f
++                       : 0.0f;
++#ifdef IMU_ICM42670
++  if (icmQ) {
++    state.angular_velocity_x = icm.gx_real * radPerDeg;
++    state.angular_velocity_y = icm.gy_real * radPerDeg;
++    state.angular_velocity_z = icm.gz_real * radPerDeg;
++  } else
++#endif
++      if (dt > 0.0f) {
++    state.angular_velocity_x = (ypr[2] - rlPrevYprDeg[2]) * radPerDeg / dt;
++    state.angular_velocity_y = (ypr[1] - rlPrevYprDeg[1]) * radPerDeg / dt;
++    state.angular_velocity_z = (ypr[0] - rlPrevYprDeg[0]) * radPerDeg / dt;
++  }
++  for (byte i = 0; i < 3; i++) {
++    rlPrevYprDeg[i] = ypr[i];
++  }
++  rlPrevTelemetryMicros = nowMicros;
++  rlTelemetryHasPrev = true;
++
++  bool jointFeedbackValid = true;
++  for (byte i = 0; i < rl_serial_v0::kTargetCount; i++) {
++    const byte jointIndex = DOF - WALKING_DOF + i;
++    state.joint_feedback[i] = currentAng[jointIndex] * radPerDeg;
++    jointFeedbackValid = jointFeedbackValid && connectedFeedbackServo[jointIndex] > 0;
++  }
++
++  uint16_t status = 0;
++  if (updateGyroQ && (icmQ || mpuQ)) {
++    status |= rl_serial_v0::kStatusTelemetryValid;
++  }
++  if (jointFeedbackValid) {
++    status |= rl_serial_v0::kStatusFeedbackValid;
++  }
++  rlResponseLen =
++      rl_serial_v0::EncodeGetStateResponse(frame.sequence_id, status, state, rlResponse, sizeof(rlResponse));
++  if (rlResponseLen > 0 && writer != nullptr) {
++    writer(rlResponse, rlResponseLen, userData);
++  }
++  rlFrameReader.Reset();
++  return rlResponseLen > 0;
++}
++
+ void reaction() {  // Reminder:  reaction() is repeatedly called in the "forever" loop() of OpenCatEsp32.ino
+   if (newCmdIdx) {
+     // PTLF("-----");

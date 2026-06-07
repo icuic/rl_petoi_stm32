@@ -144,19 +144,56 @@ size_t rl_uart8_transport_v0_read(uint8_t *data, size_t len, uint32_t timeout_ms
 int rl_uart8_transport_v0_probe_at(rl_uart8_transport_v0_t *transport,
                                    rl_uart8_transport_v0_probe_t *probe,
                                    uint32_t timeout_ms) {
-  static const uint8_t at_probe[] = {'A', 'T', '\r', '\n'};
   if (probe == 0) {
     return 0;
   }
 
-  probe->tx_len = (uint32_t)sizeof(at_probe);
+  rl_uart8_transport_v0_command_probe_t command_probe;
+  const int ok = rl_uart8_transport_v0_probe_command(transport, "AT", &command_probe, timeout_ms);
+  probe->tx_len = command_probe.tx_len;
+  probe->rx_len = command_probe.rx_len;
+  for (size_t i = 0u; i < sizeof(probe->rx); ++i) {
+    probe->rx[i] = command_probe.rx[i];
+  }
+  return ok;
+}
+
+int rl_uart8_transport_v0_probe_command(rl_uart8_transport_v0_t *transport,
+                                        const char *command,
+                                        rl_uart8_transport_v0_command_probe_t *probe,
+                                        uint32_t timeout_ms) {
+  if (command == 0 || probe == 0) {
+    return 0;
+  }
+
+  probe->command_len = 0u;
+  probe->tx_len = 0u;
   probe->rx_len = 0u;
+  for (size_t i = 0u; i < sizeof(probe->command); ++i) {
+    probe->command[i] = 0u;
+  }
   for (size_t i = 0u; i < sizeof(probe->rx); ++i) {
     probe->rx[i] = 0u;
   }
 
-  const size_t written = rl_uart8_transport_v0_write(at_probe, sizeof(at_probe), transport);
-  if (written != sizeof(at_probe)) {
+  uint8_t wire[RL_UART8_V0_PROBE_COMMAND_CAPACITY + 2u];
+  size_t command_len = 0u;
+  while (command[command_len] != '\0' && command_len < RL_UART8_V0_PROBE_COMMAND_CAPACITY) {
+    wire[command_len] = (uint8_t)command[command_len];
+    probe->command[command_len] = (uint8_t)command[command_len];
+    ++command_len;
+  }
+  if (command[command_len] != '\0' || command_len == 0u) {
+    return 0;
+  }
+
+  probe->command_len = (uint32_t)command_len;
+  wire[command_len] = '\r';
+  wire[command_len + 1u] = '\n';
+  probe->tx_len = (uint32_t)(command_len + 2u);
+
+  const size_t written = rl_uart8_transport_v0_write(wire, command_len + 2u, transport);
+  if (written != command_len + 2u) {
     return 0;
   }
 

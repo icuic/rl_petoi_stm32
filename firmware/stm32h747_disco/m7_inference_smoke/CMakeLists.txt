@@ -36,6 +36,8 @@ add_executable(m7_inference_smoke.elf
   "${STM32_CMSIS_DIR}/startup/startup_stm32h747xihx.s"
   "${STM32_CMSIS_DIR}/src/system_stm32h7xx.c"
   main.c
+  "${FIRMWARE_ROOT}/rl_serial_protocol_v0.c"
+  "${FIRMWARE_ROOT}/rl_serial_transport_v0.c"
   "${FIRMWARE_ROOT}/rl_uart8_transport_v0.c"
   "${FIRMWARE_ROOT}/rl_stedgeai_policy_v0.c"
   "${STEDGEAI_GENERATED_DIR}/network.c"
