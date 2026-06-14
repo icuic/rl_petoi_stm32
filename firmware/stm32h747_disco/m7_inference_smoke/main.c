@@ -8,8 +8,11 @@
 #include <math.h>
 
 #define SMOKE_RL_GET_STATE_ATTEMPTS 1u
-#define SMOKE_DEPLOY_STEP_COUNT 12u
-#define SMOKE_DEPLOY_RAMP_STEPS 10u
+#define SMOKE_DEPLOY_STEP_COUNT 80u
+#define SMOKE_DEPLOY_RAMP_STEPS 8u
+#define SMOKE_DEPLOY_GAIT_FRAME_STRIDE 1u
+#define SMOKE_DEPLOY_STATE_REFRESH_INTERVAL 5u
+#define SMOKE_DELAY_INNER_ITERATIONS 20000u
 #define SMOKE_ENABLE_UART8_TEXT_WARMUP 0u
 #define SMOKE_UART8_TEXT_DIAGNOSTIC 0u
 #define SMOKE_UART8_ASCII_QUERY_DIAGNOSTIC 0u
@@ -181,7 +184,7 @@ static void capture_action_diff(const float action[RL_POLICY_V0_ACTION_DIM],
 
 static void smoke_delay_units(unsigned int units) {
   for (unsigned int unit = 0; unit < units; ++unit) {
-    for (volatile unsigned int i = 0; i < 1000000u; ++i) {
+    for (volatile unsigned int i = 0; i < SMOKE_DELAY_INNER_ITERATIONS; ++i) {
     }
   }
 }
@@ -462,7 +465,6 @@ int main(void) {
     float policy_observation[RL_POLICY_V0_OBSERVATION_DIM] = {0};
     float policy_action[RL_POLICY_V0_ACTION_DIM] = {0};
     float policy_target[RL_POLICY_V0_ACTION_DIM] = {0};
-    float phase = 0.0f;
 
     for (size_t ramp_step = 0u; ramp_step < SMOKE_DEPLOY_RAMP_STEPS; ++ramp_step) {
       float ramp_target[RL_POLICY_V0_ACTION_DIM] = {0};
@@ -484,13 +486,17 @@ int main(void) {
         break;
       }
       ++g_uart8_deploy_ramp_ok_count;
-      smoke_delay_units(3u);
+      smoke_delay_units(1u);
     }
 
     for (size_t step = 0u; step < SMOKE_DEPLOY_STEP_COUNT; ++step) {
       uint16_t state_status = 0u;
       uint16_t policy_set_status = 0u;
       rl_serial_v0_telemetry_state_t state;
+      const size_t reference_index = step * SMOKE_DEPLOY_GAIT_FRAME_STRIDE;
+      const float phase =
+          (float)(reference_index % PETOI_OFFICIAL_GAIT_BASELINE_V0_FRAME_COUNT) /
+          (float)PETOI_OFFICIAL_GAIT_BASELINE_V0_FRAME_COUNT;
       if (g_uart8_deploy_abort_reason != 0u) {
         break;
       }
@@ -498,22 +504,26 @@ int main(void) {
       g_uart8_deploy_last_step_index = (unsigned int)step;
       g_uart8_deploy_phase = phase;
 
-      const rl_serial_transport_v0_status_t state_transport_status =
-          rl_serial_transport_v0_get_state(&rl_client, &state_status, &state);
-      g_uart8_rl_last_transport_status = (unsigned int)state_transport_status;
-      g_uart8_rl_last_protocol_status = state_status;
-      g_uart8_rl_transport_rx_bytes = uart8_transport.rx_bytes;
-      g_uart8_rl_transport_timeout_count = uart8_transport.timeout_count;
-      g_uart8_rl_transport_overrun_count = uart8_transport.overrun_count;
-      capture_uart8_last_read(&uart8_transport);
-      if (state_transport_status != RL_TRANSPORT_V0_OK ||
-          (state_status & RL_SERIAL_V0_STATUS_TELEMETRY_VALID) == 0u) {
-        g_uart8_deploy_abort_reason = 1u;
-        break;
+      if ((step % SMOKE_DEPLOY_STATE_REFRESH_INTERVAL) == 0u) {
+        const rl_serial_transport_v0_status_t state_transport_status =
+            rl_serial_transport_v0_get_state(&rl_client, &state_status, &state);
+        g_uart8_rl_last_transport_status = (unsigned int)state_transport_status;
+        g_uart8_rl_last_protocol_status = state_status;
+        g_uart8_rl_transport_rx_bytes = uart8_transport.rx_bytes;
+        g_uart8_rl_transport_timeout_count = uart8_transport.timeout_count;
+        g_uart8_rl_transport_overrun_count = uart8_transport.overrun_count;
+        capture_uart8_last_read(&uart8_transport);
+        if (state_transport_status != RL_TRANSPORT_V0_OK ||
+            (state_status & RL_SERIAL_V0_STATUS_TELEMETRY_VALID) == 0u) {
+          g_uart8_deploy_abort_reason = 1u;
+          break;
+        }
+        last_state = state;
+        capture_last_rl_response(&rl_client, &state);
+      } else {
+        state = last_state;
       }
       ++g_uart8_deploy_state_ok_count;
-      last_state = state;
-      capture_last_rl_response(&rl_client, &state);
 
       const float abs_roll = absf_local(state.roll);
       const float abs_pitch = absf_local(state.pitch);
@@ -531,7 +541,7 @@ int main(void) {
       ++g_uart8_policy_probe_attempt_count;
       if (!build_deploy_step_from_telemetry(&last_state,
                                             phase,
-                                            step,
+                                            reference_index,
                                             policy_previous_action,
                                             policy_observation,
                                             policy_action,
@@ -559,11 +569,7 @@ int main(void) {
       for (size_t i = 0u; i < RL_POLICY_V0_ACTION_DIM; ++i) {
         policy_previous_action[i] = policy_action[i];
       }
-      phase += 1.0f / 8.0f;
-      if (phase >= 1.0f) {
-        phase -= 1.0f;
-      }
-      smoke_delay_units(5u);
+      smoke_delay_units(1u);
     }
 
     {
