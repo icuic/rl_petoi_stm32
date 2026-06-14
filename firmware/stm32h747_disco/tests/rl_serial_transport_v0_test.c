@@ -103,12 +103,15 @@ int main(void) {
   static const char *get_state_resp_1 =
       "524c0081010036000300cdcc4c3d8fc2f5bcae47e13d8fc2f5bdb81e053ecdcc4c3e3333b33f3d0a573e"
       "85ebb13f5c8f423ee17ab43fec51383e8fc2b53f93a0";
+  static const char *get_state_resp_4 =
+      "524c0081040036000300cdcc4c3d8fc2f5bcae47e13d8fc2f5bdb81e053ecdcc4c3e3333b33f3d0a573e"
+      "85ebb13f5c8f423ee17ab43fec51383e8fc2b53fdf4a";
   static const char *set_targets_resp_2 = "524c00820200020004000052";
   static const char *step_resp_3 =
       "524c0083030036000700cdcc4c3d8fc2f5bcae47e13d8fc2f5bdb81e053ecdcc4c3e3333b33f3d0a573e"
       "85ebb13f5c8f423ee17ab43fec51383e8fc2b53f5d95";
 
-  uint8_t response_storage[RL_SERIAL_V0_MAX_FRAME_SIZE] = {0};
+  uint8_t response_storage[RL_SERIAL_V0_MAX_FRAME_SIZE * 2u] = {0};
   fake_io_t io = {.max_read_chunk = 3u};
   rl_serial_transport_v0_client_t client;
   rl_serial_transport_v0_init(&client, fake_write, fake_read, &io, (uint8_t)'Y', 25u);
@@ -168,11 +171,29 @@ int main(void) {
   if (!load_response(get_state_resp_1, response_storage, sizeof(response_storage), &io)) {
     return fail("failed to reload get-state response");
   }
-  if (rl_serial_transport_v0_get_state(&client, &status, &state) != RL_TRANSPORT_V0_UNEXPECTED_RESPONSE) {
-    return fail("sequence mismatch was not detected");
+  if (rl_serial_transport_v0_get_state(&client, &status, &state) != RL_TRANSPORT_V0_READ_TIMEOUT) {
+    return fail("stale response without current response was not rejected");
   }
   if (rl_serial_transport_v0_next_sequence(&client) != 4u) {
     return fail("sequence advanced after rejected response");
+  }
+
+  memset(&io, 0, sizeof(io));
+  char stale_then_current[RL_SERIAL_V0_MAX_FRAME_SIZE * 4u + 1u] = {0};
+  snprintf(stale_then_current,
+           sizeof(stale_then_current),
+           "%s%s",
+           get_state_resp_1,
+           get_state_resp_4);
+  if (!load_response(stale_then_current, response_storage, sizeof(response_storage), &io)) {
+    return fail("failed to load stale/current get-state responses");
+  }
+  if (rl_serial_transport_v0_get_state(&client, &status, &state) != RL_TRANSPORT_V0_OK) {
+    return fail("stale response before current response was not skipped");
+  }
+  if (status != (RL_SERIAL_V0_STATUS_TELEMETRY_VALID | RL_SERIAL_V0_STATUS_FEEDBACK_VALID) ||
+      rl_serial_transport_v0_next_sequence(&client) != 5u) {
+    return fail("stale/current get-state decoded result mismatch");
   }
 
   memset(&io, 0, sizeof(io));

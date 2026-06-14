@@ -16,6 +16,9 @@
 #define USART_ISR_RXNE_RXFNE USART_ISR_RXNE
 #endif
 
+volatile unsigned int g_rl_uart8_last_write_len;
+volatile unsigned char g_rl_uart8_last_write[RL_UART8_V0_LAST_WRITE_CAPACITY];
+
 static uint32_t normalized_clock_hz(uint32_t clock_hz) {
   return clock_hz == 0u ? RL_UART8_V0_DEFAULT_CLOCK_HZ : clock_hz;
 }
@@ -79,6 +82,14 @@ void rl_uart8_transport_v0_init(rl_uart8_transport_v0_t *transport,
     transport->rx_bytes = 0u;
     transport->timeout_count = 0u;
     transport->overrun_count = 0u;
+    transport->last_write_len = 0u;
+    for (size_t i = 0u; i < sizeof(transport->last_write); ++i) {
+      transport->last_write[i] = 0u;
+    }
+    transport->last_read_len = 0u;
+    for (size_t i = 0u; i < sizeof(transport->last_read); ++i) {
+      transport->last_read[i] = 0u;
+    }
   }
 
   uart8_gpio_init();
@@ -103,6 +114,14 @@ size_t rl_uart8_transport_v0_write(const uint8_t *data, size_t len, void *user_d
 
   if (transport != 0) {
     transport->tx_bytes += (uint32_t)written;
+    transport->last_write_len = (uint32_t)written;
+    for (size_t i = 0u; i < sizeof(transport->last_write); ++i) {
+      transport->last_write[i] = i < written ? data[i] : 0u;
+    }
+  }
+  g_rl_uart8_last_write_len = (unsigned int)written;
+  for (size_t i = 0u; i < sizeof(g_rl_uart8_last_write); ++i) {
+    g_rl_uart8_last_write[i] = i < written ? data[i] : 0u;
   }
   return written;
 }
@@ -134,6 +153,10 @@ size_t rl_uart8_transport_v0_read(uint8_t *data, size_t len, uint32_t timeout_ms
 
   if (transport != 0) {
     transport->rx_bytes += (uint32_t)received;
+    transport->last_read_len = (uint32_t)received;
+    for (size_t i = 0u; i < sizeof(transport->last_read); ++i) {
+      transport->last_read[i] = i < received ? data[i] : 0u;
+    }
     if (received < len) {
       ++transport->timeout_count;
     }

@@ -7,6 +7,7 @@ import argparse
 import json
 import math
 import sys
+import time
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -101,6 +102,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--port", default=None, help="Serial port, e.g. /dev/ttyUSB0.")
     parser.add_argument("--baud", type=int, default=115200, help="Serial baud rate.")
     parser.add_argument("--timeout", type=float, default=1.0, help="Serial timeout in seconds.")
+    parser.add_argument(
+        "--open-delay",
+        type=float,
+        default=0.5,
+        help="Delay after opening the serial port before sending the first frame.",
+    )
     parser.add_argument("--rl-token", default="Y", help="OpenCat token prepended before RL frames.")
     parser.add_argument("--get-state", action="store_true", help="Send or print one RL_GET_STATE request.")
     parser.add_argument("--index", type=int, default=None, help="Index from --list to use for RL_SET_TARGETS.")
@@ -162,6 +169,8 @@ def main() -> None:
 
     responses = []
     with serial.Serial(args.port, args.baud, timeout=args.timeout) as port:
+        if args.open_delay > 0.0:
+            time.sleep(args.open_delay)
         for name, frame in requests:
             response = send_serial_request(port, frame, args.rl_token.encode("latin1"))
             responses.append({"request": name, "response": serial_frame_to_json(response)})

@@ -13,6 +13,7 @@ extern "C" {
 #define RL_UART8_V0_PROBE_RX_CAPACITY 64u
 #define RL_UART8_V0_PROBE_COMMAND_CAPACITY 16u
 #define RL_UART8_V0_AT_PROBE_COUNT 8u
+#define RL_UART8_V0_LAST_WRITE_CAPACITY 80u
 
 typedef struct {
   uint32_t baud;
@@ -26,6 +27,10 @@ typedef struct {
   uint32_t rx_bytes;
   uint32_t timeout_count;
   uint32_t overrun_count;
+  uint32_t last_write_len;
+  uint8_t last_write[RL_UART8_V0_LAST_WRITE_CAPACITY];
+  uint32_t last_read_len;
+  uint8_t last_read[RL_UART8_V0_PROBE_RX_CAPACITY];
 } rl_uart8_transport_v0_t;
 
 typedef struct {

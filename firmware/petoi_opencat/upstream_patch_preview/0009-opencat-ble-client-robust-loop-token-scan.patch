@@ -1,0 +1,33 @@
+diff --git a/OpenCatEsp32.ino b/OpenCatEsp32.ino
+--- a/OpenCatEsp32.ino
++++ b/OpenCatEsp32.ino
+@@
+   //  //- read environment sensors (low level)
+   readEnvironment();  // update the gyro data
++  // Keep the BLE client alive even while OpenCat is draining posture/task queues.
++#ifdef BT_CLIENT
++  if (activeBtMode == BT_MODE_CLIENT) {
++    readBleClient();
++  }
++#endif
+   //  //- special behaviors based on sensor events
+   // dealWithExceptions();  // low battery, fall over, lifted, etc.
+diff --git a/src/bleClient.h b/src/bleClient.h
+--- a/src/bleClient.h
++++ b/src/bleClient.h
+@@
+   size_t offset = 0;
+   if (!bleRlFrameInProgress) {
+-    if (data[0] != T_RL_FRAME) {
++    while (offset < length && data[offset] != T_RL_FRAME) {
++      ++offset;
++    }
++    if (offset >= length) {
+       return false;
+     }
+     rlFrameReader.Reset();
+     bleRlFrameInProgress = true;
+     Serial.println("BLE RL token");
+-    offset = 1;
++    ++offset;
+   }

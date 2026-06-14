@@ -39,6 +39,7 @@ add_executable(m7_inference_smoke.elf
   "${FIRMWARE_ROOT}/rl_serial_protocol_v0.c"
   "${FIRMWARE_ROOT}/rl_serial_transport_v0.c"
   "${FIRMWARE_ROOT}/rl_uart8_transport_v0.c"
+  "${FIRMWARE_ROOT}/rl_policy_runtime_v0.c"
   "${FIRMWARE_ROOT}/rl_stedgeai_policy_v0.c"
   "${STEDGEAI_GENERATED_DIR}/network.c"
   "${STEDGEAI_GENERATED_DIR}/network_data.c"

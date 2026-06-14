@@ -34,6 +34,18 @@ Current state:
   - `0005-opencat-rl-get-state-real-tree.patch`
 - the BLE client binary-frame diff was captured in:
   - `0007-opencat-ble-client-rl-frame.patch`
+- the BLE client now has a retry scan patch captured in:
+  - `0008-opencat-ble-client-rescan.patch`
+  - rationale: the original BLE client only scanned once at startup; if it
+    missed JDY-23 `PetoiBLE-3671`, the module kept blinking and STM32 received
+    no `RL_GET_STATE` responses
+- the BLE client now has a robust loop/token scan patch captured in:
+  - `0009-opencat-ble-client-robust-loop-token-scan.patch`
+  - rationale: OpenCat only called `readSignal()` while `tQueue` was clear,
+    which could starve BLE scan/reply handling during posture tasks; JDY also
+    emitted leading NUL notification fragments after STM32 reset, so the BLE RL
+    parser now scans each notification for `T_RL_FRAME` instead of requiring it
+    at byte 0
 - repeatable compile helpers were added:
   - `scripts/setup_opencat_arduino_cli.sh`
   - `scripts/compile_opencat_rl_get_state.sh`
@@ -69,6 +81,31 @@ Verified so far:
     - STM32 RAM showed `g_uart8_rl_get_state_ok_count = 5`
     - STM32 RAM showed `g_uart8_rl_transport_rx_bytes = 0x140` (`5 * 64`)
     - last response began with `52 4c 00 81`, the `RL_GET_STATE_RESP` header
+  - 2026-06-13 STM32-resident `gait_quality_v2_30k` deployment smoke passed:
+    - Petoi BLE retry firmware was compiled and uploaded to `/dev/ttyACM1`
+    - Petoi log showed `PetoiBLE-3671` discovered and connected
+    - STM32 M7 ran the ST Edge AI actor and executed 8 guarded low-sine
+      residual policy steps over UART8/JDY-23/BLE
+    - STM32 RAM showed `deploy_step_attempt_count = 8`
+    - STM32 RAM showed `deploy_step_ok_count = 8`
+    - STM32 RAM showed `deploy_state_ok_count = 8`
+    - STM32 RAM showed `deploy_policy_ok_count = 8`
+    - STM32 RAM showed `deploy_abort_reason = 0`
+    - STM32 RAM showed `deploy_neutral_end_ok_count = 1`
+  - 2026-06-14 route-3 regression recovery:
+    - Petoi BLE client firmware with the loop/token-scan fix was compiled and
+      uploaded to `/dev/ttyACM1`
+    - Petoi log showed `BLE RL token`, `BLE RL frame ready`, and split response
+      chunks after STM32 reset despite leading NUL notification fragments
+    - STM32 RAM showed initial `g_uart8_rl_get_state_ok_count = 1`
+    - STM32 RAM showed neutral `RL_SET_TARGETS` accepted with protocol status
+      `0x0004`
+    - STM32 RAM showed `deploy_ramp_attempt_count = 10`,
+      `deploy_ramp_ok_count = 10`
+    - STM32 RAM showed `deploy_step_attempt_count = 6`,
+      `deploy_step_ok_count = 6`, `deploy_state_ok_count = 6`,
+      `deploy_policy_ok_count = 6`
+    - STM32 RAM showed `deploy_abort_reason = 0`
 
 STM32 route-3 smoke status:
 

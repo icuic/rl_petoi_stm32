@@ -6,11 +6,18 @@ STAGING_DIR="${STM32_AI_RUNTIME_DIR:-${ROOT_DIR}/firmware/stm32h747_disco/App/in
 OUT_DIR="${TMPDIR:-/tmp}/rl_petoi_stedgeai_link"
 OUT_ELF="${OUT_DIR}/rl_stedgeai_smoke.elf"
 export TMPDIR="${TMPDIR:-/tmp}"
+RUNTIME_LIB_DIR="${STAGING_DIR}/lib/gcc/stm32h7"
+RUNTIME_LIB="$(find "${RUNTIME_LIB_DIR}" -maxdepth 1 -type f -name 'NetworkRuntime*_CM7_GCC.a' | sort | tail -n 1 || true)"
 
 mkdir -p "${OUT_DIR}"
 
 if [[ ! -f "${STAGING_DIR}/generated/network.c" ]]; then
   echo "Missing staged ST Edge AI generated network. Run: bash scripts/prepare_stm32_ai_runtime.sh" >&2
+  exit 1
+fi
+if [[ -z "${RUNTIME_LIB}" || ! -f "${RUNTIME_LIB}" ]]; then
+  echo "Missing staged ST Edge AI runtime library under ${RUNTIME_LIB_DIR}" >&2
+  echo "Run: bash scripts/prepare_stm32_ai_runtime.sh" >&2
   exit 1
 fi
 
@@ -63,7 +70,7 @@ arm-none-eabi-gcc \
   "${OUT_DIR}/rl_stedgeai_policy_v0.o" \
   "${OUT_DIR}/network.o" \
   "${OUT_DIR}/network_data.o" \
-  "${STAGING_DIR}/lib/gcc/stm32h7/NetworkRuntime1200_CM7_GCC.a" \
+  "${RUNTIME_LIB}" \
   -lm \
   -o "${OUT_ELF}"
 

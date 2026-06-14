@@ -1,0 +1,60 @@
+diff --git a/src/bleClient.h b/src/bleClient.h
+index 713a24e..rescan01 100644
+--- a/src/bleClient.h
++++ b/src/bleClient.h
+@@ -21,6 +21,8 @@ bool bleRlFrameInProgress = false;
+ uint8_t bleRlPendingResponse[rl_serial_v0::kMaxFrameSize] = {};
+ size_t bleRlPendingResponseLen = 0;
++unsigned long lastBleScanStartMs = 0;
++const unsigned long BLE_SCAN_RETRY_INTERVAL = 5000;
+ // String serverBtDeviceName = "";
+ 
+ void bleParser(String raw) {
+@@ -236,6 +238,10 @@ class PetoiAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks {
+     //  if (tempDeviceName.equals(serverBtDeviceName)) {
+     if (strstr(advertisedDevice.getName().c_str(), DEVICE_NAME) != NULL) {
+       BLEDevice::getScan()->stop();
++      if (PetoiBtDevice != nullptr) {
++        delete PetoiBtDevice;
++        PetoiBtDevice = nullptr;
++      }
+       PetoiBtDevice = new BLEAdvertisedDevice(advertisedDevice);
+       doConnect = true;
+       doScan = true;
+@@ -263,6 +269,16 @@ void PetoiBtStartScan() {
+   BLEDevice::init("");
+   BLEScan* pBLEScan = BLEDevice::getScan();
++  if (pBLEScan != nullptr) {
++    pBLEScan->stop();
++    pBLEScan->clearResults();
++  }
++
++  if (!btConnected && !doConnect && PetoiBtDevice != nullptr) {
++    delete PetoiBtDevice;
++    PetoiBtDevice = nullptr;
++  }
+   
+   // Clean up any existing callback instance before creating a new one
+   if (pAdvertisedDeviceCallbacks != nullptr) {
+@@ -278,6 +294,7 @@ void PetoiBtStartScan() {
+   pBLEScan->setWindow(120);       // 减少扫描窗口，降低资源占用
+   pBLEScan->setActiveScan(true); // 使用被动扫描，减少功耗和干扰
+   pBLEScan->start(8, false);      // 减少扫描时间到3秒
++  lastBleScanStartMs = millis();
+ }
+ 
+ void PetoiBtStopScan() {
+@@ -348,6 +365,13 @@ void checkBtScan() {
+     }
+     doConnect = false;
+   }
++  if (!btConnected && !doConnect) {
++    unsigned long currentTime = millis();
++    if (currentTime - lastBleScanStartMs >= BLE_SCAN_RETRY_INTERVAL) {
++      Serial.println("BLE client: restarting scan...");
++      PetoiBtStartScan();
++    }
++  }
+   processBleRlPendingResponse();
+ }
+ 

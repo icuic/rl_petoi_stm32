@@ -26,6 +26,25 @@ static int read_exact(rl_serial_transport_v0_client_t *client, uint8_t *data, si
   return 1;
 }
 
+static int read_response_magic(rl_serial_transport_v0_client_t *client) {
+  uint8_t byte = 0u;
+  int saw_magic0 = 0;
+  for (;;) {
+    if (!read_exact(client, &byte, 1u)) {
+      return 0;
+    }
+    if (!saw_magic0) {
+      saw_magic0 = byte == RL_SERIAL_V0_MAGIC0;
+    } else if (byte == RL_SERIAL_V0_MAGIC1) {
+      client->rx_frame[0] = RL_SERIAL_V0_MAGIC0;
+      client->rx_frame[1] = RL_SERIAL_V0_MAGIC1;
+      return 1;
+    } else {
+      saw_magic0 = byte == RL_SERIAL_V0_MAGIC0;
+    }
+  }
+}
+
 static rl_serial_transport_v0_status_t send_request(rl_serial_transport_v0_client_t *client,
                                                     size_t frame_len) {
   const size_t wire_len = rl_serial_v0_prepend_opencat_token(client->opencat_token,
@@ -44,7 +63,12 @@ static rl_serial_transport_v0_status_t send_request(rl_serial_transport_v0_clien
 
 static rl_serial_transport_v0_status_t read_response(rl_serial_transport_v0_client_t *client,
                                                      rl_serial_v0_frame_view_t *out_frame) {
-  if (!read_exact(client, client->rx_frame, RL_SERIAL_V0_HEADER_SIZE)) {
+  if (!read_response_magic(client)) {
+    return RL_TRANSPORT_V0_READ_TIMEOUT;
+  }
+  if (!read_exact(client,
+                  client->rx_frame + 2u,
+                  RL_SERIAL_V0_HEADER_SIZE - 2u)) {
     return RL_TRANSPORT_V0_READ_TIMEOUT;
   }
 
@@ -79,15 +103,18 @@ static rl_serial_transport_v0_status_t request_response(rl_serial_transport_v0_c
     return status;
   }
 
-  status = read_response(client, out_response);
-  if (status != RL_TRANSPORT_V0_OK) {
-    return status;
+  for (unsigned int attempt = 0u; attempt < 8u; ++attempt) {
+    status = read_response(client, out_response);
+    if (status != RL_TRANSPORT_V0_OK) {
+      return status;
+    }
+    if (out_response->sequence_id == sequence_id &&
+        out_response->message_type == expected_response_type) {
+      client->next_sequence_id = (uint16_t)(sequence_id + 1u);
+      return RL_TRANSPORT_V0_OK;
+    }
   }
-  if (out_response->sequence_id != sequence_id || out_response->message_type != expected_response_type) {
-    return RL_TRANSPORT_V0_UNEXPECTED_RESPONSE;
-  }
-  client->next_sequence_id = (uint16_t)(sequence_id + 1u);
-  return RL_TRANSPORT_V0_OK;
+  return RL_TRANSPORT_V0_UNEXPECTED_RESPONSE;
 }
 
 static rl_serial_transport_v0_status_t map_remote_status(uint16_t status) {
