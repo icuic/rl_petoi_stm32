@@ -129,6 +129,15 @@ Verified so far:
       `deploy_policy_ok_count = 80`
     - STM32 RAM showed `deploy_abort_reason = 0`
     - STM32 RAM showed `deploy_neutral_end_ok_count = 1`
+  - 2026-06-14 extended fast suspended route-3 deployment window:
+    - STM32 M7 fast profile was extended to 120 deployment steps
+    - STM32 RAM showed `deploy_ramp_attempt_count = 8`,
+      `deploy_ramp_ok_count = 8`
+    - STM32 RAM showed `deploy_step_attempt_count = 120`,
+      `deploy_step_ok_count = 120`, `deploy_state_ok_count = 120`,
+      `deploy_policy_ok_count = 120`
+    - STM32 RAM showed `deploy_abort_reason = 0`
+    - STM32 RAM showed `deploy_neutral_end_ok_count = 1`
 
 STM32 route-3 smoke status:
 
