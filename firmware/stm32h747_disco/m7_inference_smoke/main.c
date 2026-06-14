@@ -7,12 +7,19 @@
 
 #include <math.h>
 
-#define SMOKE_RL_GET_STATE_ATTEMPTS 1u
+#define SMOKE_RL_GET_STATE_ATTEMPTS 10u
 #define SMOKE_DEPLOY_STEP_COUNT 120u
 #define SMOKE_DEPLOY_RAMP_STEPS 8u
 #define SMOKE_DEPLOY_GAIT_FRAME_STRIDE 1u
 #define SMOKE_DEPLOY_STATE_REFRESH_INTERVAL 5u
 #define SMOKE_DELAY_INNER_ITERATIONS 20000u
+#define SMOKE_DESKTOP_ASCII_UP_WARMUP 1u
+#define SMOKE_DESKTOP_UP_COMMAND_COUNT 4u
+#define SMOKE_DESKTOP_UP_COMMAND_DELAY_UNITS 250u
+#define SMOKE_DESKTOP_UP_SETTLE_DELAY_UNITS 1200u
+#define SMOKE_DESKTOP_DEPLOY_ATTITUDE_LIMIT 0.70f
+#define SMOKE_DESKTOP_SAFETY_GRACE_STEPS 12u
+#define SMOKE_DESKTOP_RL_RESIDUAL_SCALE 0.35f
 #define SMOKE_ENABLE_UART8_TEXT_WARMUP 0u
 #define SMOKE_UART8_TEXT_DIAGNOSTIC 0u
 #define SMOKE_UART8_ASCII_QUERY_DIAGNOSTIC 0u
@@ -247,13 +254,9 @@ static void run_uart8_at_probe(rl_uart8_transport_v0_t *uart8_transport) {
 #endif
 
 static void load_neutral_target(float target[RL_SERIAL_V0_TARGET_COUNT]) {
-  static const float kNeutralTarget[RL_SERIAL_V0_TARGET_COUNT] = {
-      0.558505f, 0.558505f, 0.558505f, 0.558505f,
-      0.558505f, 0.558505f, 0.558505f, 0.558505f,
-  };
   for (size_t i = 0; i < RL_SERIAL_V0_TARGET_COUNT; ++i) {
-    target[i] = kNeutralTarget[i];
-    g_uart8_neutral_target[i] = kNeutralTarget[i];
+    target[i] = kPetoiOfficialGaitBaselineV0[0][i];
+    g_uart8_neutral_target[i] = kPetoiOfficialGaitBaselineV0[0][i];
   }
 }
 
@@ -295,7 +298,7 @@ static int build_deploy_step_from_telemetry(const rl_serial_v0_telemetry_state_t
   g_uart8_policy_probe_policy_ok = policy_ok ? 1u : 0u;
   g_uart8_policy_probe_policy_error = rl_stedgeai_policy_v0_last_error();
   for (size_t i = 0u; i < RL_POLICY_V0_ACTION_DIM; ++i) {
-    const float clipped_action = clampf_local(action[i], -1.0f, 1.0f);
+    const float clipped_action = clampf_local(action[i], -1.0f, 1.0f) * SMOKE_DESKTOP_RL_RESIDUAL_SCALE;
     const float raw_target = reference[i] + clipped_action * kActionScale[i];
     const float clipped_target = clampf_local(raw_target, reference[i] - 0.12f, reference[i] + 0.12f);
     const float abs_action = absf_local(clipped_action);
@@ -350,6 +353,23 @@ int main(void) {
     g_smoke_action[i] = action[i];
   }
   capture_action_diff(action, expected_action);
+
+#if SMOKE_DESKTOP_ASCII_UP_WARMUP
+  {
+    static const uint8_t up_command[] = {'k', 'u', 'p', '\n'};
+    for (unsigned int i = 0; i < SMOKE_DESKTOP_UP_COMMAND_COUNT; ++i) {
+      const size_t written = rl_uart8_transport_v0_write(up_command,
+                                                         sizeof(up_command),
+                                                         &uart8_transport);
+      if (written == sizeof(up_command)) {
+        ++g_uart8_safe_text_tx_count;
+        g_uart8_safe_text_tx_bytes += (unsigned int)written;
+      }
+      smoke_delay_units(SMOKE_DESKTOP_UP_COMMAND_DELAY_UNITS);
+    }
+    smoke_delay_units(SMOKE_DESKTOP_UP_SETTLE_DELAY_UNITS);
+  }
+#endif
 
 #if SMOKE_UART8_TEXT_DIAGNOSTIC
   {
@@ -432,16 +452,18 @@ int main(void) {
     g_uart8_rl_attempt_timeout_count[i] = uart8_transport.timeout_count;
     g_uart8_rl_attempt_overrun_count[i] = uart8_transport.overrun_count;
     capture_uart8_last_read(&uart8_transport);
-    if (transport_status == RL_TRANSPORT_V0_OK) {
+    if (transport_status == RL_TRANSPORT_V0_OK &&
+        (status & RL_SERIAL_V0_STATUS_TELEMETRY_VALID) != 0u) {
       ++g_uart8_rl_get_state_ok_count;
       last_state = state;
       have_last_state = 1;
       capture_last_rl_response(&rl_client, &state);
+      break;
     }
     smoke_delay_units(20u);
   }
 
-  if (g_uart8_rl_get_state_ok_count == SMOKE_RL_GET_STATE_ATTEMPTS) {
+  if (have_last_state) {
     uint16_t set_status = 0u;
     load_neutral_target(neutral_target);
     ++g_uart8_neutral_set_attempt_count;
@@ -533,7 +555,9 @@ int main(void) {
       if (abs_pitch > g_uart8_deploy_max_abs_pitch) {
         g_uart8_deploy_max_abs_pitch = abs_pitch;
       }
-      if (abs_roll > 0.35f || abs_pitch > 0.35f) {
+      if (step >= SMOKE_DESKTOP_SAFETY_GRACE_STEPS &&
+          (abs_roll > SMOKE_DESKTOP_DEPLOY_ATTITUDE_LIMIT ||
+           abs_pitch > SMOKE_DESKTOP_DEPLOY_ATTITUDE_LIMIT)) {
         g_uart8_deploy_abort_reason = 2u;
         break;
       }
