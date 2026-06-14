@@ -106,6 +106,18 @@ Verified so far:
       `deploy_step_ok_count = 6`, `deploy_state_ok_count = 6`,
       `deploy_policy_ok_count = 6`
     - STM32 RAM showed `deploy_abort_reason = 0`
+  - 2026-06-14 post-push 65-second route-3 deployment window:
+    - after a controlled Petoi reset and confirmed `PetoiBLE-3671` connection,
+      STM32 M7 completed the full guarded deployment window
+    - STM32 RAM showed `g_uart8_rl_get_state_ok_count = 1`
+    - STM32 RAM showed neutral `RL_SET_TARGETS` accepted
+    - STM32 RAM showed `deploy_ramp_attempt_count = 10`,
+      `deploy_ramp_ok_count = 10`
+    - STM32 RAM showed `deploy_step_attempt_count = 12`,
+      `deploy_step_ok_count = 12`, `deploy_state_ok_count = 12`,
+      `deploy_policy_ok_count = 12`
+    - STM32 RAM showed `deploy_abort_reason = 0`
+    - STM32 RAM showed `deploy_neutral_end_ok_count = 1`
 
 STM32 route-3 smoke status:
 
